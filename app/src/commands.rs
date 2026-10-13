@@ -162,6 +162,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("export.cpl", "Pick and Place (CSV)", "Export", "", Doc, "cpl", a::export_cpl),
     cmd!("export.netlist", "KiCad Netlist (.net)", "Export", "", Doc, "schematic", a::export_netlist),
     cmd!("export.svg", "SVG of Current View", "Export", "", Canvas, "download", a::export_svg),
+    cmd!("export.print", "Print Schematic / Save as PDF…", "Export", "Ctrl+P", Doc, "sheet", a::print_schematic),
     cmd!("export.json", "Project File (.epro.json)", "Export", "", Any, "download", a::export_json),
     // Settings
     cmd!("settings.prefs", "Preferences…", "Settings", "Ctrl+,", Any, "settings", a::preferences),

@@ -1324,6 +1324,49 @@ pub fn export_svg(app: &AppState) {
     }
 }
 
+/// Every sheet of the board on its own landscape page, via the browser's
+/// print dialog (which can also save a PDF).
+pub fn print_schematic(app: &AppState) {
+    use easypro_core::scene::{sheet_scene, SchTheme};
+    let Some(b) = board_id(app) else { return };
+    let pages = app.project.with_untracked(|p| {
+        let bd = p.board(b)?;
+        let conn = easypro_core::netlist::connectivity(&bd.schematic, &p.library);
+        Some(
+            bd.schematic
+                .sheets
+                .iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    let scene =
+                        sheet_scene(s, &p.library, Some((&conn, i)), &SchTheme::LIGHT, &p.name);
+                    // Fit the frame exactly so each sheet fills its page.
+                    let svg = easypro_export::svg::scene_to_svg(&scene, Some(0xffffff), 0);
+                    (s.paper.label().to_string(), svg)
+                })
+                .collect::<Vec<_>>(),
+        )
+    });
+    let Some(pages) = pages else { return };
+    let title = app.project.with_untracked(|p| p.name.clone());
+    let paper = pages
+        .first()
+        .map(|p| p.0.clone())
+        .unwrap_or_else(|| "A4".into());
+    let body: String = pages
+        .into_iter()
+        .map(|(_, svg)| format!("<section>{svg}</section>"))
+        .collect();
+    let html = format!(
+        "<!doctype html><html><head><meta charset=utf-8><title>{title}</title><style>@page {{ size: {paper} landscape; margin: 6mm; }} body {{ margin: 0; }} section {{ page-break-after: always; height: 100vh; display: flex; align-items: center; justify-content: center; }} section svg {{ max-width: 100%; max-height: 100%; width: auto; height: auto; }}</style></head><body>{body}</body></html>"
+    );
+    if !js::print_html(&html) {
+        app.warn(
+            "The browser blocked the print window. Allow pop-ups for this site and try again.",
+        );
+    }
+}
+
 pub fn export_json(app: &AppState) {
     let json = app.project.with_untracked(|p| p.to_json());
     js::download(
