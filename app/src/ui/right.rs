@@ -371,12 +371,18 @@ fn pcb_props(app: &AppState, b: Id, sel: &[Id]) -> impl IntoView {
         Some(PcbKind::Track) => {
             let t = pcb.tracks.iter().find(|t| t.id == id).cloned().unwrap();
             let net = t.net.clone();
+            let (net_len, net_segs) = pcb
+                .tracks
+                .iter()
+                .filter(|x| !t.net.is_empty() && x.net == t.net)
+                .fold((0.0, 0usize), |(l, n), x| (l + x.length(), n + 1));
             view! {
                 <h4>"Track"</h4>
                 <SelectProp label="Layer" options=layer_options(&pcb, true) value=t.layer.name() on_set=move |v| pcb_edit(&app, b, "Track layer", true, |p| { let l = layer_by_name(p, &v); if let (Some(t), Some(l)) = (p.tracks.iter_mut().find(|t| t.id == id), l) { t.layer = l } }) />
                 <LenProp label="Width" nm=t.width on_set=move |v| pcb_edit(&app, b, "Track width", true, |p| if let Some(t) = p.tracks.iter_mut().find(|t| t.id == id) { t.width = v }) />
                 <SelectProp label="Net" options=nets value=t.net.clone() on_set=move |v| pcb_edit(&app, b, "Track net", true, |p| if let Some(t) = p.tracks.iter_mut().find(|t| t.id == id) { t.net = v }) />
                 <p class="prop-ro"><span>"Length"</span><b>{app.fmt_len(t.length() as i64)}</b></p>
+                <p class="prop-ro" title="All tracks on this net"><span>"Net length"</span><b>{if net_segs > 0 { format!("{} ({net_segs} segments)", app.fmt_len(net_len as i64)) } else { "–".into() }}</b></p>
                 <div class="row"><button on:click=move |_| app.highlight_net.set(Some(net.clone()))><Icon name="eye" />"Highlight Net"</button></div>
             }
             .into_any()
