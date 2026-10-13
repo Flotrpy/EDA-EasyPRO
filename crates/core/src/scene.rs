@@ -159,6 +159,7 @@ pub const NAME_TEXT: i64 = 1_270_000; // 50 mil
 pub const LABEL_TEXT: i64 = 1_524_000; // 60 mil
 const SCH_LINE: i64 = 152_400;
 
+#[allow(clippy::too_many_arguments)]
 fn text_items(
     text: &str,
     size: i64,
