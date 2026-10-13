@@ -13,7 +13,7 @@ pub fn ContextMenu() -> impl IntoView {
             let has_sel = !app.selection.with_untracked(|s| s.is_empty());
             let ids: Vec<&'static str> = match app.tab_untracked() {
                 Tab::Schematic { .. } if has_sel => vec!["edit.rotate", "edit.mirror", "edit.copy", "edit.cut", "edit.duplicate", "edit.delete", "", "view.fit"],
-                Tab::Pcb { .. } if has_sel => vec!["edit.rotate", "edit.flip", "edit.copy", "edit.cut", "edit.duplicate", "edit.delete", "", "view.fit"],
+                Tab::Pcb { .. } if has_sel => vec!["edit.rotate", "edit.flip", "edit.copy", "edit.cut", "edit.duplicate", "edit.delete", "", "pcb.align_left", "pcb.align_top", "pcb.distribute_x", "pcb.distribute_y", "", "view.zoom_sel"],
                 Tab::Symbol { .. } | Tab::Footprint { .. } if has_sel => vec!["edit.rotate", "edit.delete", "", "view.fit"],
                 Tab::Schematic { .. } => vec!["edit.paste", "tool.wire", "tool.label", "tool.part", "", "view.fit", "edit.select_all"],
                 Tab::Pcb { .. } => vec!["edit.paste", "tool.track", "tool.via", "pcb.rebuild", "view.clear_highlight", "", "view.fit", "edit.select_all"],

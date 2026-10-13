@@ -954,6 +954,45 @@ pub fn select_net(app: &AppState) {
     }
 }
 
+fn align(app: &AppState, mode: edit::AlignMode) {
+    let Some(b) = board_id(app) else { return };
+    let sel = app.selection.get_untracked();
+    let mut moved = 0;
+    app.try_edit("Align", |p| {
+        let lib = p.library.clone();
+        if let Some(bd) = p.board_mut(b) {
+            moved = edit::pcb_align(&mut bd.pcb, &sel, mode);
+            if moved > 0 {
+                bd.pcb.rebuild_pours(&lib);
+            }
+        }
+        moved > 0
+    });
+    if moved == 0 {
+        app.status
+            .set("Select two or more unlocked parts to align".into());
+    }
+}
+
+pub fn align_left(app: &AppState) {
+    align(app, edit::AlignMode::Left);
+}
+pub fn align_right(app: &AppState) {
+    align(app, edit::AlignMode::Right);
+}
+pub fn align_top(app: &AppState) {
+    align(app, edit::AlignMode::Top);
+}
+pub fn align_bottom(app: &AppState) {
+    align(app, edit::AlignMode::Bottom);
+}
+pub fn distribute_x(app: &AppState) {
+    align(app, edit::AlignMode::DistributeX);
+}
+pub fn distribute_y(app: &AppState) {
+    align(app, edit::AlignMode::DistributeY);
+}
+
 pub fn rebuild_pours(app: &AppState) {
     let Some(b) = board_id(app) else { return };
     app.edit("Rebuild copper areas", |p| {
