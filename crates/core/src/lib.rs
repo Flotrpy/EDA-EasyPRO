@@ -18,6 +18,7 @@ pub mod layer;
 pub mod library;
 pub mod netlist;
 pub mod pcb;
+pub mod pick;
 pub mod pour;
 pub mod project;
 pub mod route;

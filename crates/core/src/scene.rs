@@ -525,6 +525,22 @@ fn port_items(
     }
 }
 
+/// Bounding box of a power/ground flag or sheet port as drawn.
+pub fn port_bbox(port: &crate::schematic::NetPort) -> Rect {
+    let mut v = Vec::new();
+    port_items(
+        &port.name,
+        port.pos,
+        port.style,
+        port.rotation,
+        &SchTheme::LIGHT,
+        None,
+        &mut v,
+    );
+    v.iter()
+        .fold(Rect::EMPTY, |r, it| r.union(prim_bbox(&it.prim)))
+}
+
 /// Everything on a schematic sheet.
 pub fn sheet_scene(
     sheet: &Sheet,
