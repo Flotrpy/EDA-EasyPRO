@@ -78,19 +78,23 @@ pub enum Gesture {
     Tool,
 }
 
+/// Everything that changes the static scene: revision, theme, layer
+/// visibility, highlighted net, active layer and grid style.
+pub type SceneKey = (
+    u64,
+    bool,
+    Vec<easypro_core::layer::Layer>,
+    Option<String>,
+    easypro_core::layer::Layer,
+    bool,
+);
+
 pub struct View {
     pub renderer: Renderer,
     pub camera: Camera,
     pub dpr: f64,
     pub built: Option<Built>,
-    pub scene_key: Option<(
-        u64,
-        bool,
-        Vec<easypro_core::layer::Layer>,
-        Option<String>,
-        easypro_core::layer::Layer,
-        bool,
-    )>,
+    pub scene_key: Option<SceneKey>,
     pub gesture: Gesture,
     pub tool: ToolState,
     /// Snapped cursor in world nm.
@@ -181,16 +185,7 @@ pub const SEL: u32 = rgba(0x3aa0ff, 255);
 pub const HOVER: u32 = rgba(0x9fd0ff, 150);
 pub const CROSS: u32 = rgba(0xffb030, 220);
 
-fn scene_key(
-    app: &AppState,
-) -> (
-    u64,
-    bool,
-    Vec<easypro_core::layer::Layer>,
-    Option<String>,
-    easypro_core::layer::Layer,
-    bool,
-) {
+fn scene_key(app: &AppState) -> SceneKey {
     (
         app.rev.get_untracked(),
         app.dark.get_untracked(),
