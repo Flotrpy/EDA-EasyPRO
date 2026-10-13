@@ -529,6 +529,7 @@ fn fp_props(app: &AppState, id: &str, sel: &[Id]) -> impl IntoView {
             <h4>"Footprint"</h4>
             <TextProp label="Name" value=fp.name.clone() on_set=move |v| edit_footprint(&app, &fid.get_value(), "Rename footprint", |f| f.name = v) />
             <p class="hint">{format!("{} pads. Press P for SMD pads, H for through-hole pads; new pads copy the last pad's size.", fp.pads.len())}</p>
+            <PadGenerator id=fid.get_value() />
         }
         .into_any(),
         _ => view! { <p class="hint">{format!("{} items selected", sel.len())}</p> }.into_any(),
@@ -590,5 +591,55 @@ fn NetsPanel() -> impl IntoView {
                 view! { <button class="net-item" class:active=move || app.highlight_net.get().as_deref() == Some(n2.as_str()) on:click=move |_| app.highlight_net.set(Some(n3.clone()))>{n}</button> }
             }).collect_view()}
         </div>
+    }
+}
+
+/// Quick pad rows for headers, SOIC, DIP and similar packages.
+#[component]
+fn PadGenerator(id: String) -> impl IntoView {
+    use crate::editor::footprint::edit_footprint;
+    use easypro_core::geom::Point;
+    let app = use_app();
+    let count = RwSignal::new(8usize);
+    let rows = RwSignal::new(2usize);
+    let pitch = RwSignal::new(easypro_core::units::mm(1.27));
+    let span = RwSignal::new(easypro_core::units::mm(5.4));
+    let w = RwSignal::new(easypro_core::units::mm(1.55));
+    let h = RwSignal::new(easypro_core::units::mm(0.6));
+    let tht = RwSignal::new(false);
+    let drill = RwSignal::new(easypro_core::units::mm(0.8));
+    let id = StoredValue::new(id);
+    let len = move |label: &'static str, sig: RwSignal<i64>| view! { <LenProp label=label nm=sig.get_untracked() on_set=move |v| sig.set(v) /> };
+    let generate = move |_| {
+        let kind = if tht.get_untracked() {
+            PadKind::Tht {
+                drill: drill.get_untracked(),
+            }
+        } else {
+            PadKind::Smd
+        };
+        let pads = easypro_core::wizard::pad_array(
+            count.get_untracked().max(1),
+            rows.get_untracked(),
+            pitch.get_untracked(),
+            span.get_untracked(),
+            Point::new(w.get_untracked(), h.get_untracked()),
+            kind,
+        );
+        let n = pads.len();
+        edit_footprint(&app, &id.get_value(), "Generate pads", |f| f.pads = pads);
+        app.ok(format!("Generated {n} pads"));
+    };
+    view! {
+        <h4>"Generate Pads"</h4>
+        <NumProp label="Pad count" value=count.get_untracked() as f64 on_set=move |v| count.set(v.max(1.0) as usize) />
+        <SelectProp label="Rows" options=vec![("1".into(), "Single row".into()), ("2".into(), "Two rows (SOIC/DIP)".into())] value=rows.get_untracked().to_string() on_set=move |v| rows.set(v.parse().unwrap_or(2)) />
+        {len("Pitch", pitch)}
+        {len("Row spacing", span)}
+        {len("Pad width", w)}
+        {len("Pad height", h)}
+        <CheckProp label="Through-hole" value=tht.get_untracked() on_set=move |v| tht.set(v) />
+        {len("Drill", drill)}
+        <div class="row"><button on:click=generate><Icon name="wand" />"Replace Pads"</button></div>
     }
 }
