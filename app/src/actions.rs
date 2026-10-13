@@ -1531,6 +1531,20 @@ pub fn shortcuts(app: &AppState) {
     app.dialog.set(Some(Dialog::Shortcuts));
 }
 
+fn open_url(url: &str) {
+    if let Some(w) = web_sys::window() {
+        let _ = w.open_with_url_and_target(url, "_blank");
+    }
+}
+
+pub fn open_guide(_app: &AppState) {
+    open_url("https://github.com/Flotrpy/EDA-EasyPRO/blob/main/docs/USER_GUIDE.md");
+}
+
+pub fn report_issue(_app: &AppState) {
+    open_url("https://github.com/Flotrpy/EDA-EasyPRO/issues/new");
+}
+
 pub fn about(app: &AppState) {
     app.dialog.set(Some(Dialog::About));
 }

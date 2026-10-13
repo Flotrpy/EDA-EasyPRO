@@ -183,6 +183,8 @@ pub static COMMANDS: &[Command] = &[
     cmd!("settings.keys", "Keyboard Shortcuts…", "Settings", "", Any, "keyboard", a::shortcuts),
     // Help
     cmd!("help.shortcuts", "Shortcut Reference", "Help", "?", Any, "keyboard", a::shortcuts),
+    cmd!("help.guide", "User Guide", "Help", "F1", Any, "book", a::open_guide),
+    cmd!("help.issue", "Report a Problem", "Help", "", Any, "help", a::report_issue),
     cmd!("help.about", "About EasyPRO", "Help", "", Any, "info", a::about),
 ];
 
