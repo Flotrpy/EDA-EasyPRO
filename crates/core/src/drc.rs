@@ -317,6 +317,7 @@ fn placement_checks(pcb: &Pcb, lib: &Library, out: &mut Vec<Issue>) {
         pads: Vec<(Hull, bool)>,
         body: Rect,
         silk: Vec<Hull>,
+        reach: Rect,
     }
     let mut placed = Vec::new();
     for c in &pcb.components {
@@ -358,11 +359,13 @@ fn placement_checks(pcb: &Pcb, lib: &Library, out: &mut Vec<Issue>) {
                 silk.push(Hull::capsule(s[0], s[1], hw));
             }
         }
+        let reach = silk.iter().fold(body, |r, h| r.union(h.bbox()));
         placed.push(Placed {
             c,
             pads,
             body,
             silk,
+            reach,
         });
     }
     for i in 0..placed.len() {
@@ -371,6 +374,10 @@ fn placement_checks(pcb: &Pcb, lib: &Library, out: &mut Vec<Issue>) {
                 continue;
             }
             let (a, b) = (&placed[i], &placed[j]);
+            // Cheap reject: parts whose copper and silk are far apart.
+            if !a.reach.intersects(&b.reach) {
+                continue;
+            }
             if i < j
                 && a.c.side == b.c.side
                 && !a.body.is_empty()
