@@ -10,4 +10,4 @@ serde.workspace = true
 serde_json.workspace = true
 rstar.workspace = true
 earcutr.workspace = true
-geo = "0.29"
+i_overlay = "1.9"
