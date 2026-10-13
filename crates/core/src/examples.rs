@@ -241,10 +241,10 @@ pub fn regulator() -> Project {
     let j1 = b.part("dev:HDR-1x2", "5V IN", 3000.0, 6000.0, 0.0);
     let c1 = b.part("dev:C-0805", "10uF", 4400.0, 6000.0, 0.0);
     let u1 = b.part("dev:AMS1117-3.3", "AMS1117-3.3", 5800.0, 6000.0, 0.0);
-    let c2 = b.part("dev:C-0805", "22uF", 7200.0, 6000.0, 0.0);
-    let r1 = b.part("dev:R-0603", "1k", 8200.0, 6600.0, 0.0);
-    let d1 = b.part("dev:LED-0805", "Green", 8200.0, 5400.0, 0.0);
-    let j2 = b.part("dev:HDR-1x2", "3V3 OUT", 9400.0, 6000.0, 0.0);
+    let c2 = b.part("dev:C-0805", "22uF", 7500.0, 6000.0, 0.0);
+    let r1 = b.part("dev:R-0603", "1k", 8600.0, 6600.0, 0.0);
+    let d1 = b.part("dev:LED-0805", "Green", 8600.0, 5400.0, 0.0);
+    let j2 = b.part("dev:HDR-1x2", "3V3 OUT", 9800.0, 6000.0, 0.0);
     for (c, pin, net) in [
         (j1, "1", "VIN"),
         (j1, "2", "GND"),
@@ -282,6 +282,17 @@ pub fn regulator() -> Project {
         if let Some((_, x, y, r)) = place.iter().find(|(d, ..)| *d == c.designator) {
             c.pos = Point::new(mm(*x), mm(*y));
             c.rotation = *r;
+        }
+    }
+    // Keep designators off the tracks (offsets in board coordinates).
+    for (des, dx, dy) in [("C1", -1.8, 1.6), ("C2", -1.8, 1.6), ("R1", 0.0, -1.6)] {
+        if let Some(c) = p.boards[0]
+            .pcb
+            .components
+            .iter_mut()
+            .find(|c| c.designator == des)
+        {
+            c.designator_offset = Some(rotate(Point::new(mm(dx), mm(dy)), -c.rotation));
         }
     }
     let board = crate::geom::Rect::new(Point::ZERO, Point::new(mm(45.0), mm(22.0)));
