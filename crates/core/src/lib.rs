@@ -8,6 +8,7 @@ pub mod check;
 pub mod connect;
 pub mod drc;
 pub mod erc;
+pub mod examples;
 pub mod font;
 pub mod geom;
 pub mod history;
