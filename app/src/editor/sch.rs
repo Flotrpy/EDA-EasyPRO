@@ -467,6 +467,26 @@ impl Handler for SchHandler {
             }
             _ => {}
         }
+        // ERC results for this sheet.
+        let (_, sheet) = kk(k);
+        let r = (8.0 / v.camera.zoom * 1e6) as i64;
+        let w = (2.0 / v.camera.zoom * 1e6) as i64;
+        for is in app.issues.get_untracked() {
+            if let (Some(p), Some(si)) = (is.pos, is.sheet) {
+                if si == sheet {
+                    let c = match is.severity {
+                        easypro_core::check::Severity::Error => rgba(0xe5343a, 230),
+                        easypro_core::check::Severity::Warning => rgba(0xe89a10, 210),
+                        easypro_core::check::Severity::Info => continue,
+                    };
+                    items.push(Item {
+                        prim: Prim::Ring { c: p, r, w },
+                        color: c,
+                        owner: None,
+                    });
+                }
+            }
+        }
         draw_items(v, m, &items);
     }
 
