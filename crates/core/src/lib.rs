@@ -12,6 +12,7 @@ pub mod font;
 pub mod geom;
 pub mod history;
 pub mod id;
+pub mod kicad;
 pub mod layer;
 pub mod library;
 pub mod netlist;
