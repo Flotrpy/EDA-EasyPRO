@@ -210,6 +210,8 @@ pub enum Dialog {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ViewCmd {
     Fit,
+    /// Fit a world rectangle (zoom to selection).
+    FitRect(easypro_core::geom::Rect),
     ZoomIn,
     ZoomOut,
     Show(Point),

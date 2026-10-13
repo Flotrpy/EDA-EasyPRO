@@ -91,6 +91,7 @@ pub static COMMANDS: &[Command] = &[
     // View
     cmd!("view.fit", "Fit All", "View", "Home", Canvas, "fit", a::fit),
     cmd!("view.fit2", "Fit All", "", "Ctrl+0", Canvas, "fit", a::fit),
+    cmd!("view.zoom_sel", "Zoom to Selection", "View", "Z", Canvas, "zoom-in", a::zoom_selection),
     cmd!("view.zoom_in", "Zoom In", "View", "=", Canvas, "zoom-in", a::zoom_in),
     cmd!("view.zoom_out", "Zoom Out", "View", "-", Canvas, "zoom-out", a::zoom_out),
     cmd!("view.left", "Toggle Left Panel", "View", "Ctrl+B", Any, "panel-left", a::toggle_left),

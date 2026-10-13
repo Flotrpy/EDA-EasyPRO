@@ -473,6 +473,9 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                             vb.camera.fit(r, 40.0);
                         }
                     }
+                    ViewCmd::FitRect(r) => vb
+                        .camera
+                        .fit(r.inflate(r.width().max(r.height()) / 4 + 500_000), 40.0),
                     ViewCmd::ZoomIn => vb.camera.zoom_at(w / 2.0, h / 2.0, 1.4),
                     ViewCmd::ZoomOut => vb.camera.zoom_at(w / 2.0, h / 2.0, 1.0 / 1.4),
                     ViewCmd::Show(p) => {

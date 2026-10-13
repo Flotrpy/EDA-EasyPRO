@@ -545,6 +545,32 @@ pub fn fit(app: &AppState) {
     app.view_cmd.set(Some(ViewCmd::Fit));
 }
 
+pub fn zoom_selection(app: &AppState) {
+    let sel = app.selection.get_untracked();
+    let Some(b) = board_id(app) else { return };
+    let r = app.project.with_untracked(|p| {
+        let bd = p.board(b)?;
+        let rects: Vec<Rect> = match app.tab_untracked() {
+            Tab::Schematic { sheet, .. } => {
+                let s = bd.schematic.sheets.get(sheet)?;
+                sel.iter()
+                    .filter_map(|id| easypro_core::pick::sch_bbox(s, &p.library, *id))
+                    .collect()
+            }
+            Tab::Pcb { .. } => sel
+                .iter()
+                .filter_map(|id| easypro_core::pick::pcb_bbox(&bd.pcb, &p.library, *id))
+                .collect(),
+            _ => vec![],
+        };
+        Some(rects.into_iter().fold(Rect::EMPTY, |a, b| a.union(b)))
+    });
+    match r {
+        Some(r) if !r.is_empty() => app.view_cmd.set(Some(ViewCmd::FitRect(r))),
+        _ => fit(app),
+    }
+}
+
 pub fn zoom_in(app: &AppState) {
     app.view_cmd.set(Some(ViewCmd::ZoomIn));
 }
