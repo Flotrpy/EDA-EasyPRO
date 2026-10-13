@@ -32,7 +32,7 @@ jobs:
         run: cargo run -p easypro-export --example fab_package -- blinker-fab.zip
 
   build:
-    name: Build web app
+    name: Build web app and smoke test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +46,16 @@ jobs:
           trunk --version
       - name: Build
         working-directory: app
-        run: trunk build --release --public-url /EDA-EasyPRO/
+        run: trunk build --release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Browser smoke test
+        working-directory: tests/e2e
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+          node smoke.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: easypro-web
