@@ -18,6 +18,7 @@ pub mod netlist;
 pub mod pcb;
 pub mod pour;
 pub mod project;
+pub mod route;
 pub mod schematic;
 pub mod shape;
 pub mod sync;
