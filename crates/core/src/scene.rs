@@ -347,17 +347,18 @@ pub fn symbol_items(
     }
 }
 
-/// Default label positions for a placed part: top-right of its body.
+/// Default label positions for a placed part: designator above the body,
+/// value below it, both left-aligned with the body.
 pub fn component_label_positions(c: &Component, lib: &Library) -> (Point, Point) {
     let b = c.bbox(lib);
     let des = c
         .designator_offset
         .map(|o| c.pos + o)
-        .unwrap_or(Point::new(b.max.x + mil(20.0), b.max.y + mil(10.0)));
-    let val = c.value_offset.map(|o| c.pos + o).unwrap_or(Point::new(
-        b.max.x + mil(20.0),
-        b.max.y - LABEL_TEXT - mil(30.0),
-    ));
+        .unwrap_or(Point::new(b.min.x, b.max.y + mil(25.0)));
+    let val = c
+        .value_offset
+        .map(|o| c.pos + o)
+        .unwrap_or(Point::new(b.min.x, b.min.y - LABEL_TEXT - mil(25.0)));
     (des, val)
 }
 
@@ -525,6 +526,34 @@ fn port_items(
     }
 }
 
+fn label_items(l: &crate::schematic::NetLabel, theme: &SchTheme, out: &mut Vec<Item>) {
+    let o = Some(l.id);
+    // Text reads left-to-right or bottom-to-top and extends away from the wire.
+    let (rot, align, dx) = match crate::geom::normalize_angle(l.rotation) as i64 {
+        180 => (0.0, Align::Right, -mil(10.0)),
+        270 => (90.0, Align::Right, -mil(10.0)),
+        r => (r as f64, Align::Left, mil(10.0)),
+    };
+    let pos = l.pos + crate::geom::rotate(Point::new(dx, mil(15.0)), rot);
+    text_items(&l.name, LABEL_TEXT, pos, rot, align, theme.label, o, out);
+    out.push(Item {
+        prim: Prim::Disc {
+            c: l.pos,
+            r: mil(12.0),
+        },
+        color: theme.label,
+        owner: o,
+    });
+}
+
+/// Bounding box of a net label as drawn.
+pub fn label_bbox(l: &crate::schematic::NetLabel) -> Rect {
+    let mut v = Vec::new();
+    label_items(l, &SchTheme::LIGHT, &mut v);
+    v.iter()
+        .fold(Rect::EMPTY, |r, it| r.union(prim_bbox(&it.prim)))
+}
+
 /// Bounding box of a power/ground flag or sheet port as drawn.
 pub fn port_bbox(port: &crate::schematic::NetPort) -> Rect {
     let mut v = Vec::new();
@@ -587,26 +616,7 @@ pub fn sheet_scene(
         component_items(c, lib, theme, &mut v);
     }
     for l in &sheet.labels {
-        let o = Some(l.id);
-        let pos = l.pos + crate::geom::rotate(Point::new(mil(10.0), mil(15.0)), l.rotation);
-        text_items(
-            &l.name,
-            LABEL_TEXT,
-            pos,
-            l.rotation,
-            Align::Left,
-            theme.label,
-            o,
-            &mut v,
-        );
-        v.push(Item {
-            prim: Prim::Disc {
-                c: l.pos,
-                r: mil(12.0),
-            },
-            color: theme.label,
-            owner: o,
-        });
+        label_items(l, theme, &mut v);
     }
     for p in &sheet.ports {
         port_items(
@@ -929,7 +939,7 @@ pub fn pcb_scene(
                         outer: r.outer.clone(),
                         holes: r.holes.clone(),
                     },
-                    color: layer_color(p.layer, alpha(&p.net) / 2 + 20),
+                    color: layer_color(p.layer, alpha(&p.net) / 3 + 10),
                     owner: Some(p.id),
                 },
             );

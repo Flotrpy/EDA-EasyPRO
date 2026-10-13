@@ -1,12 +1,10 @@
 //! Hit testing for the editors.
 
-use crate::font;
 use crate::geom::{point_segment_dist, Point, Rect};
 use crate::id::Id;
 use crate::layer::Layer;
 use crate::library::{Library, PadKind};
 use crate::pcb::Pcb;
-use crate::scene::LABEL_TEXT;
 use crate::schematic::Sheet;
 
 /// What kind of object an id refers to (for property panels and tools).
@@ -38,16 +36,6 @@ pub fn sch_kind(sheet: &Sheet, id: Id) -> Option<SchKind> {
     }
 }
 
-fn label_box(pos: Point, name: &str) -> Rect {
-    Rect::new(
-        pos,
-        pos + Point::new(
-            font::text_width(name, LABEL_TEXT) + 300_000,
-            LABEL_TEXT + 500_000,
-        ),
-    )
-}
-
 /// Bounding box of a schematic object.
 pub fn sch_bbox(sheet: &Sheet, lib: &Library, id: Id) -> Option<Rect> {
     if let Some(c) = sheet.component(id) {
@@ -57,7 +45,7 @@ pub fn sch_bbox(sheet: &Sheet, lib: &Library, id: Id) -> Option<Rect> {
         return Some(Rect::from_points(w.points.iter().copied()));
     }
     if let Some(l) = sheet.labels.iter().find(|o| o.id == id) {
-        return Some(label_box(l.pos, &l.name));
+        return Some(crate::scene::label_bbox(l));
     }
     if let Some(p) = sheet.ports.iter().find(|o| o.id == id) {
         return Some(crate::scene::port_bbox(p));
@@ -76,7 +64,7 @@ pub fn sch_bbox(sheet: &Sheet, lib: &Library, id: Id) -> Option<Rect> {
 pub fn sch_hit(sheet: &Sheet, lib: &Library, p: Point, tol: i64) -> Option<Id> {
     let tol_f = tol as f64;
     for l in sheet.labels.iter().rev() {
-        if label_box(l.pos, &l.name).inflate(tol / 2).contains(p) {
+        if crate::scene::label_bbox(l).inflate(tol / 2).contains(p) {
             return Some(l.id);
         }
     }
