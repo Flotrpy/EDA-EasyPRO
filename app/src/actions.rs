@@ -1110,6 +1110,28 @@ pub fn rebuild_pours(app: &AppState) {
     app.ok("Copper areas rebuilt");
 }
 
+/// Delete tracks that end in nothing, including whole abandoned stubs.
+pub fn remove_dangling(app: &AppState) {
+    let Some(b) = board_id(app) else { return };
+    let mut n = 0;
+    app.try_edit("Remove dangling tracks", |p| {
+        let lib = p.library.clone();
+        let Some(bd) = p.board_mut(b) else {
+            return false;
+        };
+        n = easypro_core::drc::remove_dangling_tracks(&mut bd.pcb, &lib).len();
+        if n > 0 {
+            bd.pcb.rebuild_pours(&lib);
+        }
+        n > 0
+    });
+    if n == 0 {
+        app.ok("No dangling tracks");
+    } else {
+        app.ok(format!("Removed {n} dangling track segment(s)"));
+    }
+}
+
 // ------------------------------------------------------------ design
 
 pub fn annotate(app: &AppState) {
