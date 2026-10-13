@@ -337,6 +337,74 @@ pub fn frag_bbox(frag: &SchFragment, lib: &Library) -> Rect {
     r
 }
 
+// ---------------------------------------------------------------- align
+
+/// How to line parts up.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AlignMode {
+    Left,
+    Right,
+    Top,
+    Bottom,
+    CenterX,
+    CenterY,
+    /// Even spacing left to right.
+    DistributeX,
+    /// Even spacing bottom to top.
+    DistributeY,
+}
+
+/// New origins for parts at `pos` (by their origins). Needs two or more.
+pub fn aligned(pos: &[Point], mode: AlignMode) -> Vec<Point> {
+    if pos.len() < 2 {
+        return pos.to_vec();
+    }
+    let r = Rect::from_points(pos.iter().copied());
+    let c = r.center();
+    let distribute = |vertical: bool| {
+        let mut order: Vec<usize> = (0..pos.len()).collect();
+        order.sort_by_key(|&i| if vertical { pos[i].y } else { pos[i].x });
+        let mut out = pos.to_vec();
+        let n = (pos.len() - 1) as i64;
+        for (k, &i) in order.iter().enumerate() {
+            let k = k as i64;
+            if vertical {
+                out[i].y = r.min.y + (r.max.y - r.min.y) * k / n;
+            } else {
+                out[i].x = r.min.x + (r.max.x - r.min.x) * k / n;
+            }
+        }
+        out
+    };
+    match mode {
+        AlignMode::Left => pos.iter().map(|p| Point::new(r.min.x, p.y)).collect(),
+        AlignMode::Right => pos.iter().map(|p| Point::new(r.max.x, p.y)).collect(),
+        AlignMode::Top => pos.iter().map(|p| Point::new(p.x, r.max.y)).collect(),
+        AlignMode::Bottom => pos.iter().map(|p| Point::new(p.x, r.min.y)).collect(),
+        AlignMode::CenterX => pos.iter().map(|p| Point::new(c.x, p.y)).collect(),
+        AlignMode::CenterY => pos.iter().map(|p| Point::new(p.x, c.y)).collect(),
+        AlignMode::DistributeX => distribute(false),
+        AlignMode::DistributeY => distribute(true),
+    }
+}
+
+/// Align the unlocked footprints among `ids`. Returns how many moved.
+pub fn pcb_align(pcb: &mut Pcb, ids: &[Id], mode: AlignMode) -> usize {
+    let idx: Vec<usize> = (0..pcb.components.len())
+        .filter(|&i| ids.contains(&pcb.components[i].id) && !pcb.components[i].locked)
+        .collect();
+    let pos: Vec<Point> = idx.iter().map(|&i| pcb.components[i].pos).collect();
+    let new = aligned(&pos, mode);
+    let mut moved = 0;
+    for (k, &i) in idx.iter().enumerate() {
+        if pcb.components[i].pos != new[k] {
+            pcb.components[i].pos = new[k];
+            moved += 1;
+        }
+    }
+    moved
+}
+
 // ---------------------------------------------------------------- PCB
 
 pub fn pcb_move(pcb: &mut Pcb, ids: &[Id], d: Point) -> usize {
@@ -625,6 +693,23 @@ mod tests {
         assert!(sheet.components[n].designator.ends_with('?'));
         let json = serde_json::to_string(&frag).unwrap();
         assert_eq!(serde_json::from_str::<SchFragment>(&json).unwrap(), frag);
+    }
+
+    #[test]
+    fn align_and_distribute() {
+        let pts = [Point::new(0, 0), Point::new(10, 7), Point::new(3, 2)];
+        assert!(aligned(&pts, AlignMode::Left).iter().all(|p| p.x == 0));
+        assert!(aligned(&pts, AlignMode::Top).iter().all(|p| p.y == 7));
+        let d = aligned(&pts, AlignMode::DistributeX);
+        assert_eq!(d[2].x, 5, "middle part moves to the midpoint");
+        assert_eq!(aligned(&pts[..1], AlignMode::Left), pts[..1].to_vec());
+
+        let mut p = blinker();
+        let pcb = &mut p.boards[0].pcb;
+        let ids: Vec<Id> = pcb.components.iter().take(3).map(|c| c.id).collect();
+        pcb.components[1].locked = true;
+        pcb_align(pcb, &ids, AlignMode::Left);
+        assert_eq!(pcb.components[0].pos.x, pcb.components[2].pos.x);
     }
 
     #[test]
