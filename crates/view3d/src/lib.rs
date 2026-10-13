@@ -7,6 +7,7 @@ pub mod build;
 pub mod gl;
 pub mod math;
 pub mod mesh;
+pub mod stl;
 
 pub use build::{board_mesh, View3dOptions};
 pub use gl::Viewer;
