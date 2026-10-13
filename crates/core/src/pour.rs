@@ -164,7 +164,7 @@ mod tests {
         let keep = Hull::circle(Point::new(500, 0), 5);
         let all = fill(
             &square(Point::ZERO, 1000),
-            &[wall.clone()],
+            std::slice::from_ref(&wall),
             10,
             &[],
             false,

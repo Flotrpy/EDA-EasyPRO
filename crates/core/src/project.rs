@@ -73,12 +73,12 @@ impl Project {
     /// board outline so the PCB editor never opens to a blank void.
     pub fn new(name: &str) -> Project {
         let mut ids = IdGen::default();
-        let board_id = ids.next();
-        let sheet_id = ids.next();
+        let board_id = ids.fresh();
+        let sheet_id = ids.fresh();
         let mut pcb = Pcb::default();
         let outline = Rect::new(Point::ZERO, Point::new(mm(50.0), mm(40.0)));
         pcb.graphics.push(PcbGraphic {
-            id: ids.next(),
+            id: ids.fresh(),
             layer: Layer::Outline,
             shape: Shape::Polygon {
                 points: outline.corners().to_vec(),
@@ -111,7 +111,7 @@ impl Project {
     }
 
     pub fn next_id(&mut self) -> Id {
-        self.ids.next()
+        self.ids.fresh()
     }
 
     pub fn to_json(&self) -> String {

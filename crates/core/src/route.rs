@@ -55,6 +55,7 @@ pub fn first_collision<'a>(
 
 /// Pick the clean variant of a 45° path if one exists ("walkaround light"):
 /// try the preferred bend, then the other one.
+#[allow(clippy::too_many_arguments)]
 pub fn best_path45(
     a: Point,
     b: Point,

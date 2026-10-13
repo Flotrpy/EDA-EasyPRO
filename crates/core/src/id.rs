@@ -22,7 +22,7 @@ pub struct IdGen {
 }
 
 impl IdGen {
-    pub fn next(&mut self) -> Id {
+    pub fn fresh(&mut self) -> Id {
         self.next += 1;
         Id(self.next)
     }

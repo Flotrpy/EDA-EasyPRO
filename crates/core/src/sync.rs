@@ -188,7 +188,7 @@ pub fn update_pcb(board: &mut Board, lib: &Library, ids: &mut IdGen) -> SyncRepo
             cursor.x += w + mm(3.0);
             row_height = row_height.max(h);
             pcb.components.push(PcbComponent {
-                id: ids.next(),
+                id: ids.fresh(),
                 link: Some(c.id),
                 designator: c.designator.clone(),
                 value: c.value.clone(),

@@ -164,7 +164,10 @@ pub fn blinker() -> Project {
     p
 }
 
-pub fn all() -> Vec<(&'static str, fn() -> Project)> {
+/// An example: display name and constructor.
+pub type Example = (&'static str, fn() -> Project);
+
+pub fn all() -> Vec<Example> {
     vec![("555 LED Blinker", blinker)]
 }
 
