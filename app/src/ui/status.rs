@@ -29,9 +29,45 @@ pub fn StatusBar() -> impl IntoView {
             <span class="spacer"></span>
             <span class="sel">{move || { let n = app.selection.with(|s| s.len()); if n > 0 { format!("{n} selected") } else { String::new() } }}</span>
             <span class="pos">{pos}</span>
-            <span class="grid">{grid}</span>
+            <button class="grid link" title="Click to change the grid" on:click=move |_| cycle_grid(&app)>{grid}</button>
             <button class="unit" title="Toggle units" on:click=move |_| crate::actions::toggle_units(&app)>{move || app.settings.with(|s| s.unit.label())}</button>
             <span class="saved">{move || if app.dirty.get() { "Unsaved · kept in browser" } else { "Saved" }}</span>
         </footer>
     }
+}
+
+/// Step through common grid sizes for the active editor.
+fn cycle_grid(app: &crate::state::AppState) {
+    use easypro_core::units::{mil, mm};
+    let pcb = matches!(app.tab_untracked(), Tab::Pcb { .. } | Tab::Footprint { .. });
+    app.settings.update(|s| {
+        if pcb {
+            let steps = [
+                mm(0.05),
+                mm(0.1),
+                mm(0.25),
+                mm(0.5),
+                mm(1.0),
+                mil(5.0),
+                mil(10.0),
+                mil(25.0),
+                mil(50.0),
+            ];
+            let i = steps
+                .iter()
+                .position(|g| *g == s.pcb_grid)
+                .map(|i| (i + 1) % steps.len())
+                .unwrap_or(2);
+            s.pcb_grid = steps[i];
+        } else {
+            let steps = [mil(10.0), mil(25.0), mil(50.0), mil(100.0)];
+            let i = steps
+                .iter()
+                .position(|g| *g == s.sch_grid)
+                .map(|i| (i + 1) % steps.len())
+                .unwrap_or(2);
+            s.sch_grid = steps[i];
+        }
+    });
+    app.settings.with_untracked(|s| s.save());
 }
