@@ -287,6 +287,21 @@ impl Schematic {
     }
 }
 
+/// Suggested name for the next net label after `last`: a trailing number
+/// counts up keeping its zero padding (`D07` -> `D08`), and a name without
+/// one is reused, since the usual reason is to join the same net again.
+pub fn next_label_name(last: &str) -> String {
+    let digits = last.len() - last.trim_end_matches(|c: char| c.is_ascii_digit()).len();
+    if digits == 0 {
+        return last.to_string();
+    }
+    let (stem, num) = last.split_at(last.len() - digits);
+    match num.parse::<u64>() {
+        Ok(n) => format!("{stem}{:0width$}", n + 1, width = digits),
+        Err(_) => last.to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -327,5 +342,16 @@ mod tests {
         });
         assert!(s.remove(Id(4)));
         assert!(!s.remove(Id(4)));
+    }
+
+    #[test]
+    fn label_names_count_up() {
+        assert_eq!(next_label_name("D0"), "D1");
+        assert_eq!(next_label_name("D07"), "D08");
+        assert_eq!(next_label_name("ADC9"), "ADC10");
+        assert_eq!(next_label_name("A99"), "A100");
+        assert_eq!(next_label_name("SDA"), "SDA");
+        assert_eq!(next_label_name("12"), "13");
+        assert_eq!(next_label_name(""), "");
     }
 }

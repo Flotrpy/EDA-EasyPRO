@@ -50,25 +50,8 @@ fn next_label(app: &AppState, k: &Kind) -> String {
             .and_then(|bd| bd.schematic.sheets.get(s))
             .and_then(|sh| sh.labels.last().map(|l| l.name.clone()))
     });
-    match last {
-        Some(name) => {
-            let digits: String = name
-                .chars()
-                .rev()
-                .take_while(|c| c.is_ascii_digit())
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect();
-            if digits.is_empty() {
-                format!("{name}1")
-            } else {
-                let n: u64 = digits.parse().unwrap_or(0);
-                format!("{}{}", &name[..name.len() - digits.len()], n + 1)
-            }
-        }
-        None => "NET1".into(),
-    }
+    last.map(|l| easypro_core::schematic::next_label_name(&l))
+        .unwrap_or_else(|| "NET1".into())
 }
 
 impl SchHandler {
