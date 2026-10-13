@@ -35,7 +35,7 @@ impl Sexp {
     }
 
     pub fn get(&self, head: &str) -> Option<&Sexp> {
-        self.all(head).next()
+        self.items().iter().find(|s| s.head() == Some(head))
     }
 
     /// The n-th element after the head as a string.
