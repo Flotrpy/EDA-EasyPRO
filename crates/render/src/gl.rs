@@ -73,9 +73,6 @@ void main() {
         if (max(dm.x, dm.y) < 1.1) { c = u_major; a = 1.0; }
         else if (max(d.x, d.y) < 0.75) { a = 1.0; }
     }
-    // Axes through the origin.
-    vec2 ax = abs(world) * u_zoom;
-    if (min(ax.x, ax.y) < 0.6) { c = u_major; a = 1.0; }
     if (a == 0.0) discard;
     o = c;
 }
