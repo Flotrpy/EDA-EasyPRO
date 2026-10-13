@@ -55,6 +55,28 @@ impl Builder {
             id: wid,
             points: vec![at, end],
         });
+        let rotation = if dir.x < 0 {
+            180.0
+        } else if dir.y < 0 {
+            270.0
+        } else if dir.y > 0 {
+            90.0
+        } else {
+            0.0
+        };
+        // The IC's pins are 100 mil apart: labels fit there, flags do not.
+        if sheet
+            .component(comp)
+            .is_some_and(|c| c.device.starts_with("dev:NE555"))
+        {
+            sheet.labels.push(NetLabel {
+                id: lid,
+                name: net.into(),
+                pos: end,
+                rotation,
+            });
+            return;
+        }
         match net {
             "VCC" => sheet.ports.push(NetPort {
                 id: lid,
@@ -74,7 +96,7 @@ impl Builder {
                 id: lid,
                 name: net.into(),
                 pos: end,
-                rotation: 0.0,
+                rotation,
             }),
         }
     }
