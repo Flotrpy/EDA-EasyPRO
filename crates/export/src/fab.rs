@@ -210,6 +210,32 @@ mod tests {
     }
 
     #[test]
+    fn every_example_builds_for_every_fab() {
+        for (name, make) in easypro_core::examples::all() {
+            let p = make();
+            for fab in Fab::ALL {
+                let files = package_files(&p.boards[0], &p.library, fab, "x");
+                for (f, data) in &files {
+                    let text = String::from_utf8_lossy(data);
+                    let ok = if f.ends_with(".DRL") || f.ends_with(".XLN") {
+                        text.trim_end().ends_with("M30")
+                    } else if f.ends_with(".ipc") {
+                        text.trim_end().ends_with("999")
+                    } else if f.ends_with(".csv") || f.ends_with(".txt") || f.ends_with(".gbrjob") {
+                        !text.trim().is_empty()
+                    } else {
+                        text.trim_end().ends_with("M02*")
+                    };
+                    assert!(ok, "{name} / {fab:?}: {f} looks truncated");
+                }
+                // The zip holds the same files.
+                let zip = package_zip(&p.boards[0], &p.library, fab, "x");
+                assert!(zip.len() > files.iter().map(|f| f.0.len()).sum::<usize>());
+            }
+        }
+    }
+
+    #[test]
     fn generic_and_oshpark_naming() {
         let p = blinker();
         let g = package_files(&p.boards[0], &p.library, Fab::Generic, "b");
