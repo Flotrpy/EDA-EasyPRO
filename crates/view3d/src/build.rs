@@ -540,6 +540,27 @@ mod tests {
     }
 
     #[test]
+    fn routed_example_extents_and_options() {
+        let p = easypro_core::examples::regulator();
+        let pcb = &p.boards[0].pcb;
+        let full = View3dOptions::default();
+        let bare = View3dOptions {
+            components: false,
+            silk: false,
+            ..full
+        };
+        let (m, _) = board_mesh(pcb, &p.library, &full);
+        let (b, _) = board_mesh(pcb, &p.library, &bare);
+        assert!(b.indices.len() < m.indices.len());
+        // The bare board spans the 45 x 22 mm outline and its 1.6 mm stackup.
+        let ext = |i: usize| b.max[i] - b.min[i];
+        assert!((ext(0) - 45.0).abs() < 0.2, "x {}", ext(0));
+        assert!((ext(1) - 22.0).abs() < 0.2, "y {}", ext(1));
+        assert!(ext(2) > 1.6 && ext(2) < 1.8, "z {}", ext(2));
+        assert!(b.indices.iter().all(|&i| i < b.vertex_count()));
+    }
+
+    #[test]
     fn obj_import() {
         let b = parse_obj("v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nf 1 2 3 4\n").unwrap();
         match b {
