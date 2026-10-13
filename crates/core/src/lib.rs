@@ -8,6 +8,7 @@ pub mod geom;
 pub mod id;
 pub mod layer;
 pub mod library;
+pub mod pcb;
 pub mod pour;
 pub mod schematic;
 pub mod shape;
