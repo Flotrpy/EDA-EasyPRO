@@ -374,10 +374,13 @@ fn local_xy(ev: &web_sys::MouseEvent, canvas: &web_sys::HtmlCanvasElement) -> (f
     )
 }
 
-fn update_cursor(app: &AppState, v: &mut View, xy: (f64, f64)) {
+/// Update the cursor. Holding Alt (`free`) suspends grid snapping on
+/// boards and footprints; schematics always stay on grid so pins connect.
+fn update_cursor(app: &AppState, v: &mut View, xy: (f64, f64), free: bool) {
     let raw = v.camera.to_world_nm(xy.0, xy.1);
     v.raw = raw;
     let grid = match ACTIVE.with(|a| a.borrow().as_ref().map(|(k, _)| k.clone())) {
+        Some(Kind::Pcb { .. } | Kind::Fp(_)) if free => 0,
         Some(k) => handler(&k).snap(app),
         None => 0,
     };
@@ -552,7 +555,7 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                 let h = handler(&kind);
                 {
                     let mut v = view.borrow_mut();
-                    update_cursor(&app, &mut v, xy);
+                    update_cursor(&app, &mut v, xy, ev.alt_key());
                     let touch = ev.pointer_type() == "touch";
                     if touch {
                         v.touches.retain(|(id, _)| *id != ev.pointer_id());
@@ -644,7 +647,7 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                 let h = handler(&kind);
                 {
                     let mut v = view.borrow_mut();
-                    update_cursor(&app, &mut v, xy);
+                    update_cursor(&app, &mut v, xy, ev.alt_key());
                     if let Some(t) = v.touches.iter_mut().find(|(id, _)| *id == ev.pointer_id()) {
                         t.1 = xy;
                     }
@@ -819,9 +822,27 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                     } else {
                         v.camera.pan_pixels(-ev.delta_x(), -ev.delta_y());
                     }
-                    update_cursor(&app, &mut v, xy);
+                    update_cursor(&app, &mut v, xy, ev.alt_key());
                 }
                 request_frame(app, kind.clone(), view.clone());
+            });
+        }
+    };
+
+    // The browser took the pointer (e.g. a system gesture): drop any
+    // half-done drag or pinch without applying it.
+    let on_cancel = {
+        let with_view = with_view.clone();
+        move |ev: web_sys::PointerEvent| {
+            with_view(&|view, _| {
+                let mut v = view.borrow_mut();
+                v.touches.retain(|(id, _)| *id != ev.pointer_id());
+                if let Gesture::Drag { before, .. } =
+                    std::mem::replace(&mut v.gesture, Gesture::None)
+                {
+                    app.project.set(*before);
+                    app.rev.update(|r| *r += 1);
+                }
             });
         }
     };
@@ -864,6 +885,7 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                 on:dblclick=on_dbl
                 on:wheel=on_wheel
                 on:pointerleave=on_leave
+                on:pointercancel=on_cancel
                 on:contextmenu=|ev: web_sys::MouseEvent| ev.prevent_default()
             ></canvas>
             {move || error.get().map(|e| view! {
