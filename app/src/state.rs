@@ -211,6 +211,7 @@ pub enum Dialog {
     IcWizard,
     Bom,
     UndoHistory,
+    BoardInfo,
 }
 
 /// Requests from menus to the active editor's camera.

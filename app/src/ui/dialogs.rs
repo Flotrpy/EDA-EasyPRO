@@ -46,6 +46,7 @@ pub fn Dialogs() -> impl IntoView {
             Dialog::IcWizard => view! { <IcWizard /> }.into_any(),
             Dialog::Bom => view! { <BomDialog /> }.into_any(),
             Dialog::UndoHistory => view! { <UndoHistory /> }.into_any(),
+            Dialog::BoardInfo => view! { <BoardInfo /> }.into_any(),
         })
     }
 }
@@ -841,6 +842,59 @@ fn BomDialog() -> impl IntoView {
                 <button on:click=move |_| download(BomStyle::Generic)><Icon name="download" />"CSV"</button>
                 <button class="primary" on:click=move |_| download(BomStyle::Jlc)><Icon name="download" />"JLCPCB format"</button>
             </div>
+        </Modal>
+    }
+}
+
+/// Board size, part and hole counts and routed length per net.
+#[component]
+fn BoardInfo() -> impl IntoView {
+    let app = use_app();
+    let board = actions::board_id(&app);
+    let stats = Memo::new(move |_| {
+        app.rev.track();
+        app.project.with_untracked(|p| {
+            board
+                .and_then(|b| p.board(b))
+                .map(|bd| easypro_core::board::stats(&bd.pcb, &p.library))
+        })
+    });
+    let len = move |v: i64| {
+        let u = app.unit();
+        format!("{} {}", u.format(v), u.label())
+    };
+    view! {
+        <Modal title="Board Info".into()>
+            {move || match stats.get() {
+                None => view! { <p class="hint">"Open a project with a board first."</p> }.into_any(),
+                Some(s) => {
+                    let rows: Vec<(&str, String)> = vec![
+                        ("Size", format!("{} × {}", len(s.width), len(s.height))),
+                        ("Area", format!("{:.1} mm²", s.area_mm2)),
+                        ("Components", format!("{} top, {} bottom", s.components_top, s.components_bottom)),
+                        ("Pads", format!("{} SMD, {} through-hole", s.smd_pads, s.tht_pads)),
+                        ("Holes", format!("{} (smallest {})", s.holes, s.smallest_drill.map(len).unwrap_or_else(|| "–".into()))),
+                        ("Vias", s.vias.to_string()),
+                        ("Tracks", format!("{} segments, {:.1} mm", s.tracks, s.track_length_mm)),
+                        ("Nets", s.nets.to_string()),
+                    ];
+                    view! {
+                        <table class="kv small">
+                            <tbody>
+                                {rows.into_iter().map(|(k, v)| view! { <tr><th>{k}</th><td>{v}</td></tr> }).collect_view()}
+                            </tbody>
+                        </table>
+                        <h4>"Routed length per net"</h4>
+                        <div class="bom-table">
+                            <table class="kv small">
+                                <tbody>
+                                    {s.net_lengths.into_iter().map(|(n, l)| view! { <tr><td>{n}</td><td class="num">{format!("{l:.2} mm")}</td></tr> }).collect_view()}
+                                </tbody>
+                            </table>
+                        </div>
+                    }.into_any()
+                }
+            }}
         </Modal>
     }
 }

@@ -1180,6 +1180,10 @@ pub fn update_pcb(app: &AppState) {
     app.view_cmd.set(Some(ViewCmd::Fit));
 }
 
+pub fn board_info(app: &AppState) {
+    app.dialog.set(Some(Dialog::BoardInfo));
+}
+
 pub fn bom_dialog(app: &AppState) {
     app.dialog.set(Some(Dialog::Bom));
 }

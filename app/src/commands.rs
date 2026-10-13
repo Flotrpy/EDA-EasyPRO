@@ -159,6 +159,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("design.update_pcb", "Update PCB from Schematic", "Design", "Ctrl+U", Doc, "sync", a::update_pcb),
     cmd!("design.drc", "Design Rule Check", "Design", "Ctrl+Alt+D", Pcb, "drc", a::drc),
     cmd!("design.bom", "Bill of Materials…", "Design", "", Doc, "list", a::bom_dialog),
+    cmd!("design.board_info", "Board Info…", "Design", "", Doc, "info", a::board_info),
     cmd!("design.rules", "Design Rules…", "Design", "", Pcb, "settings", a::rules),
     cmd!("design.board", "Board Setup (Layers, Thickness, Colour)…", "Design", "", Pcb, "board", a::board_setup),
     cmd!("design.add_sheet", "Add Schematic Sheet", "Design", "", Doc, "sheet", a::add_sheet),
