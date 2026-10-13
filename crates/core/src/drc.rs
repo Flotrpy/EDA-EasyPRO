@@ -290,6 +290,7 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
     }
 
     placement_checks(pcb, lib, &mut out);
+    silk_checks(pcb, &mut out, &fmt);
 
     // Connectivity.
     let conn = analyze_items(&items);
@@ -305,6 +306,47 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
 
     sort(&mut out);
     out
+}
+
+/// Board silkscreen that most fabs cannot print legibly.
+fn silk_checks(pcb: &Pcb, out: &mut Vec<Issue>, fmt: &dyn Fn(i64) -> String) {
+    use crate::layer::Layer;
+    use crate::shape::Shape;
+    const MIN_LINE: i64 = 100_000;
+    const MIN_TEXT: i64 = 700_000;
+    for g in pcb
+        .graphics
+        .iter()
+        .filter(|g| matches!(g.layer, Layer::TopSilk | Layer::BottomSilk))
+    {
+        let problem = match &g.shape {
+            Shape::Text { size, .. } if *size < MIN_TEXT => Some(format!(
+                "Silkscreen text {} high is below {}",
+                fmt(*size),
+                fmt(MIN_TEXT)
+            )),
+            Shape::Text { .. } => None,
+            Shape::Line { width, .. }
+            | Shape::Polyline { width, .. }
+            | Shape::Rect { width, .. }
+            | Shape::Polygon { width, .. }
+            | Shape::Arc { width, .. }
+            | Shape::Circle { width, .. } => (*width < MIN_LINE && *width > 0).then(|| {
+                format!(
+                    "Silkscreen line {} wide is below {}",
+                    fmt(*width),
+                    fmt(MIN_LINE)
+                )
+            }),
+        };
+        if let Some(msg) = problem {
+            out.push(
+                Issue::new(Severity::Warning, msg)
+                    .at(g.shape.bbox().center())
+                    .with(g.id),
+            );
+        }
+    }
 }
 
 /// Parts sitting on top of each other, and silkscreen printed over
@@ -514,6 +556,43 @@ mod tests {
             !issues
                 .iter()
                 .any(|i| i.message.contains("overlaps") || i.message.contains("Silkscreen")),
+            "{issues:#?}"
+        );
+    }
+
+    #[test]
+    fn thin_silkscreen_is_flagged() {
+        use crate::pcb::PcbGraphic;
+        use crate::shape::Shape;
+        let p = Project::new("t");
+        let mut pcb = p.boards[0].pcb.clone();
+        pcb.graphics.push(PcbGraphic {
+            id: Id(500),
+            layer: Layer::TopSilk,
+            shape: Shape::Text {
+                pos: Point::new(mm(10.0), mm(10.0)),
+                text: "v1".into(),
+                size: mm(0.4),
+                rotation: 0.0,
+                align: crate::shape::Align::Left,
+            },
+        });
+        pcb.graphics.push(PcbGraphic {
+            id: Id(501),
+            layer: Layer::TopSilk,
+            shape: Shape::line(
+                Point::new(mm(5.0), mm(5.0)),
+                Point::new(mm(9.0), mm(5.0)),
+                mm(0.05),
+            ),
+        });
+        let issues = run(&pcb, &p.library, Unit::Mm);
+        assert_eq!(
+            issues
+                .iter()
+                .filter(|i| i.message.starts_with("Silkscreen"))
+                .count(),
+            2,
             "{issues:#?}"
         );
     }
