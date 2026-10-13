@@ -1296,6 +1296,19 @@ pub fn ic_wizard(app: &AppState) {
     app.dialog.set(Some(Dialog::IcWizard));
 }
 
+pub fn purge_library(app: &AppState) {
+    let mut n = 0;
+    app.try_edit("Remove unused parts", |p| {
+        n = p.purge_unused_library();
+        n > 0
+    });
+    app.ok(if n == 0 {
+        "Every part in the project library is in use".to_string()
+    } else {
+        format!("Removed {n} unused library entries")
+    });
+}
+
 pub fn validate_library(app: &AppState) {
     let problems = app.project.with_untracked(|p| p.library.validate());
     if problems.is_empty() {
@@ -1471,7 +1484,10 @@ pub fn export_assembly(app: &AppState) {
             .collect::<Vec<_>>()
     });
     for (side, svg) in files.unwrap_or_default() {
-        let name = format!("{base}-assembly-{}.svg", if side == Side::Top { "top" } else { "bottom" });
+        let name = format!(
+            "{base}-assembly-{}.svg",
+            if side == Side::Top { "top" } else { "bottom" }
+        );
         js::download(&name, svg.as_bytes(), "image/svg+xml");
         app.ok(format!("Exported {name}"));
     }

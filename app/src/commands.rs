@@ -164,6 +164,7 @@ pub static COMMANDS: &[Command] = &[
     // Tools
     cmd!("tools.new_device", "New Device…", "Tools", "", Any, "chip", a::new_device),
     cmd!("tools.ic_wizard", "IC Symbol Wizard…", "Tools", "", Any, "wand", a::ic_wizard),
+    cmd!("tools.purge_lib", "Remove Unused Parts from Project Library", "Tools", "", Any, "trash", a::purge_library),
     cmd!("tools.validate_lib", "Check Project Library", "Tools", "", Any, "check", a::validate_library),
     // Export
     cmd!("export.fab", "Fabrication Package (Gerber, Drill, BOM, CPL)…", "Export", "Ctrl+Alt+G", Doc, "export", a::fabrication),
