@@ -1,0 +1,13 @@
+[package]
+name = "easypro-core"
+description = "Document model, geometry, netlisting and rule checks for EasyPRO"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+rstar.workspace = true
+earcutr.workspace = true
+geo = "0.29"
