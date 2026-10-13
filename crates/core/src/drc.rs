@@ -309,28 +309,54 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
     out
 }
 
-/// Track ends that touch no other copper: leftovers from deleting parts or
-/// abandoned routes, which act as antennas and confuse the fab netlist.
-fn dangling_tracks(pcb: &Pcb, items: &[CopperItem], out: &mut Vec<Issue>) {
+/// Tracks with an end that touches no other copper, with that end:
+/// leftovers from deleting parts or abandoned routes, which act as antennas
+/// and confuse the fab netlist.
+pub fn dangling_ends(pcb: &Pcb, items: &[CopperItem]) -> Vec<(Id, Point)> {
     let boxes: Vec<Rect> = items.iter().map(|it| it.hull.bbox()).collect();
+    let mut out = Vec::new();
     for t in &pcb.tracks {
-        for end in [t.a, t.b] {
+        let free = [t.a, t.b].into_iter().find(|&end| {
             let probe = Hull::circle(end, t.width / 2);
-            let touched = items.iter().zip(&boxes).any(|(it, bb)| {
+            !items.iter().zip(&boxes).any(|(it, bb)| {
                 !matches!(it.what, CopperRef::Track(id) if id == t.id)
                     && it.layer.shares_copper(t.layer)
                     && bb.inflate(t.width).contains(end)
                     && it.hull.distance(&probe) <= 0.0
-            });
-            if !touched {
-                out.push(
-                    Issue::new(Severity::Warning, "Track end is not connected to anything")
-                        .at(end)
-                        .with(t.id),
-                );
-                break;
-            }
+            })
+        });
+        if let Some(end) = free {
+            out.push((t.id, end));
         }
+    }
+    out
+}
+
+fn dangling_tracks(pcb: &Pcb, items: &[CopperItem], out: &mut Vec<Issue>) {
+    for (id, end) in dangling_ends(pcb, items) {
+        out.push(
+            Issue::new(Severity::Warning, "Track end is not connected to anything")
+                .at(end)
+                .with(id),
+        );
+    }
+}
+
+/// Delete dangling tracks until none are left (removing one stub can leave
+/// the segment before it dangling). Returns the removed ids.
+pub fn remove_dangling_tracks(pcb: &mut Pcb, lib: &Library) -> Vec<Id> {
+    let mut removed = Vec::new();
+    loop {
+        let items = pcb.copper_items(lib);
+        let ids: Vec<Id> = dangling_ends(pcb, &items)
+            .into_iter()
+            .map(|d| d.0)
+            .collect();
+        if ids.is_empty() {
+            return removed;
+        }
+        pcb.tracks.retain(|t| !ids.contains(&t.id));
+        removed.extend(ids);
     }
 }
 
@@ -645,5 +671,21 @@ mod tests {
         assert_eq!(dangling[0].objects, vec![Id(900)]);
         assert_eq!(dangling[0].pos, Some(Point::new(mm(10.0), mm(15.0))));
         assert!(dangling.iter().all(|i| i.severity == Severity::Warning));
+    }
+
+    #[test]
+    fn cleanup_removes_whole_dangling_chains() {
+        let p = crate::examples::regulator();
+        let mut pcb = p.boards[0].pcb.clone();
+        let before = pcb.tracks.len();
+        // A two-segment stub off VIN and a lone floating segment.
+        pcb.tracks.push(track(900, 10.0, 12.27, 10.0, 15.0, "VIN"));
+        pcb.tracks.push(track(901, 10.0, 15.0, 8.0, 17.0, "VIN"));
+        pcb.tracks.push(track(902, 30.0, 20.0, 34.0, 20.0, ""));
+        let mut gone = remove_dangling_tracks(&mut pcb, &p.library);
+        gone.sort();
+        assert_eq!(gone, vec![Id(900), Id(901), Id(902)]);
+        assert_eq!(pcb.tracks.len(), before);
+        assert!(run(&pcb, &p.library, Unit::Mm).is_empty());
     }
 }
