@@ -148,7 +148,9 @@ pub static COMMANDS: &[Command] = &[
     cmd!("design.rules", "Design Rules…", "Design", "", Pcb, "settings", a::rules),
     cmd!("design.board", "Board Setup (Layers, Thickness, Colour)…", "Design", "", Pcb, "board", a::board_setup),
     cmd!("design.add_sheet", "Add Schematic Sheet", "Design", "", Doc, "sheet", a::add_sheet),
+    cmd!("design.remove_sheet", "Delete Current Sheet", "Design", "", Sch, "trash", a::remove_sheet),
     cmd!("design.add_board", "Add Board", "Design", "", Any, "board", a::add_board),
+    cmd!("design.remove_board", "Delete Current Board", "Design", "", Doc, "trash", a::remove_board),
     // Tools
     cmd!("tools.new_device", "New Device…", "Tools", "", Any, "chip", a::new_device),
     cmd!("tools.ic_wizard", "IC Symbol Wizard…", "Tools", "", Any, "wand", a::ic_wizard),

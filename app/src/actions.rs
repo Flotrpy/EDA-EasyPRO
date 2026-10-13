@@ -1011,6 +1011,69 @@ pub fn add_sheet(app: &AppState) {
     });
 }
 
+fn confirm(msg: &str) -> bool {
+    web_sys::window()
+        .and_then(|w| w.confirm_with_message(msg).ok())
+        .unwrap_or(false)
+}
+
+pub fn remove_sheet(app: &AppState) {
+    let Tab::Schematic { board, sheet } = app.tab_untracked() else {
+        return;
+    };
+    if app.project.with_untracked(|p| {
+        p.board(board)
+            .map(|b| b.schematic.sheets.len())
+            .unwrap_or(0)
+    }) <= 1
+    {
+        app.warn("A board needs at least one sheet");
+        return;
+    }
+    if !confirm("Delete this sheet and everything on it? You can undo with Ctrl+Z.") {
+        return;
+    }
+    app.edit("Delete sheet", |p| {
+        p.remove_sheet(board, sheet);
+    });
+    // Drop the sheet's tab and renumber later sheets.
+    app.tabs.update(|tabs| {
+        tabs.retain(|t| *t != Tab::Schematic { board, sheet });
+        for t in tabs.iter_mut() {
+            if let Tab::Schematic { board: b, sheet: s } = t {
+                if *b == board && *s > sheet {
+                    *s -= 1;
+                }
+            }
+        }
+    });
+    app.active.set(0);
+    app.open(Tab::Schematic {
+        board,
+        sheet: sheet.saturating_sub(1),
+    });
+}
+
+pub fn remove_board(app: &AppState) {
+    let Some(board) = app.tab_untracked().board() else {
+        return;
+    };
+    if app.project.with_untracked(|p| p.boards.len()) <= 1 {
+        app.warn("A project needs at least one board");
+        return;
+    }
+    if !confirm("Delete this board with its schematic and PCB? You can undo with Ctrl+Z.") {
+        return;
+    }
+    app.edit("Delete board", |p| {
+        p.remove_board(board);
+    });
+    app.tabs
+        .update(|tabs| tabs.retain(|t| t.board() != Some(board)));
+    app.active.set(0);
+    open_sch(app);
+}
+
 pub fn add_board(app: &AppState) {
     let mut id = None;
     app.edit("Add board", |p| {
