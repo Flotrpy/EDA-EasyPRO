@@ -409,6 +409,30 @@ pub fn header(n: usize, pitch: f64) -> Footprint {
     fp(&format!("fp:{name}"), &name, pads, g)
 }
 
+/// 2 x N pin header (2.54 mm), pin 1 top-left, numbered in zig-zag rows.
+pub fn header2(rows: usize) -> Footprint {
+    let pitch = 2.54;
+    let top = (rows as f64 - 1.0) * pitch / 2.0;
+    let pads = (0..2 * rows)
+        .map(|i| {
+            let x = if i % 2 == 0 {
+                -pitch / 2.0
+            } else {
+                pitch / 2.0
+            };
+            let y = top - (i / 2) as f64 * pitch;
+            tht(&(i + 1).to_string(), x, y, 1.7, 1.0, i == 0)
+        })
+        .collect();
+    let name = format!("HDR-2x{rows}-2.54");
+    let len = rows as f64 * pitch;
+    let g = vec![
+        fab_rect(2.0 * pitch, len),
+        silk_rect(2.0 * pitch + 0.2, len + 0.2),
+    ];
+    fp(&format!("fp:{name}"), &name, pads, g)
+}
+
 pub fn screw_terminal_2() -> Footprint {
     let pads = vec![
         tht("1", -2.54, 0.0, 2.4, 1.2, true),
@@ -686,12 +710,27 @@ pub fn all() -> Vec<Footprint> {
     for n in [2, 3, 4, 6, 8] {
         v.push(header(n, 2.54));
     }
+    for rows in [3, 5, 10] {
+        v.push(header2(rows));
+    }
     v
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dual_row_header_numbering() {
+        let f = header2(5);
+        assert_eq!(f.pads.len(), 10);
+        let at = |n: &str| f.pad(n).unwrap().pos;
+        // 1 top-left, 2 beside it, then down in rows.
+        assert!(at("1").x < at("2").x && at("1").y == at("2").y);
+        assert!(at("3").y < at("1").y && at("3").x == at("1").x);
+        assert_eq!(at("1").y, -at("9").y);
+        assert!(matches!(f.pad("1").unwrap().shape, PadShape::Rect));
+    }
 
     #[test]
     fn qfp_numbering_is_counter_clockwise() {

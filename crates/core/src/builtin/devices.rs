@@ -409,6 +409,9 @@ pub fn symbols() -> Vec<Symbol> {
             "Header 1x8",
             &["1", "2", "3", "4", "5", "6", "7", "8"],
         ),
+        sym::connector2("sym:hdr2-3", "Header 2x3", 3),
+        sym::connector2("sym:hdr2-5", "Header 2x5", 5),
+        sym::connector2("sym:hdr2-10", "Header 2x10", 10),
     ]
 }
 
@@ -835,6 +838,24 @@ pub fn all() -> Vec<Device> {
             footprint: Some(format!("fp:HDR-1x{n}-2.54")),
             model: model(Body::Header, 2.54, 2.54 * n as f64, 8.5, BLACK),
             value: format!("1x{n}"),
+            ..Default::default()
+        });
+    }
+    for (rows, use_) in [
+        (3, "AVR ISP"),
+        (5, "ARM SWD/JTAG, IDC ribbon"),
+        (10, "Raspberry Pi style"),
+    ] {
+        v.push(Device {
+            id: format!("dev:HDR-2x{rows}"),
+            name: format!("Pin Header 2x{rows} 2.54mm"),
+            description: format!("Dual-row male header, {} positions ({use_})", 2 * rows),
+            category: "Connectors".into(),
+            prefix: "J".into(),
+            symbol: format!("sym:hdr2-{rows}"),
+            footprint: Some(format!("fp:HDR-2x{rows}-2.54")),
+            model: model(Body::Header, 5.08, 2.54 * rows as f64, 8.5, BLACK),
+            value: format!("2x{rows}"),
             ..Default::default()
         });
     }

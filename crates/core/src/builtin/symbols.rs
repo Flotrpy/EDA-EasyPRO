@@ -523,6 +523,39 @@ pub fn ic_box(
 }
 
 /// Single-row connector: pins on the left, numbered top to bottom.
+/// Dual-row connector: odd pins on the left, even pins on the right,
+/// matching the zig-zag numbering of 2 x N headers.
+pub fn connector2(id: &str, name: &str, rows: usize) -> Symbol {
+    let top = ((rows as f64 - 1.0) * 50.0 / 100.0).ceil() * 100.0;
+    let bottom = top - (rows as f64 - 1.0) * 100.0;
+    let mut pins = Vec::new();
+    let mut g = vec![Shape::rect(
+        p(-100.0, top + 100.0),
+        p(100.0, bottom - 100.0),
+        W,
+    )];
+    for r in 0..rows {
+        let y = top - r as f64 * 100.0;
+        let (odd, even) = ((2 * r + 1).to_string(), (2 * r + 2).to_string());
+        pins.push(pin(&odd, &odd, -300.0, y, 0.0, 200.0, PinKind::Passive));
+        pins.push(pin(&even, &even, 300.0, y, 180.0, 200.0, PinKind::Passive));
+        for x in [-60.0, 20.0] {
+            g.push(Shape::Rect {
+                a: p(x, y - 15.0),
+                b: p(x + 40.0, y + 15.0),
+                width: W,
+                fill: true,
+            });
+        }
+    }
+    Symbol {
+        id: id.into(),
+        name: name.into(),
+        pins,
+        graphics: g,
+    }
+}
+
 pub fn connector(id: &str, name: &str, pins: &[&str]) -> Symbol {
     let n = pins.len();
     let top = ((n as f64 - 1.0) * 100.0 / 2.0 / 100.0).ceil() * 100.0;
