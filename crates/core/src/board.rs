@@ -103,6 +103,72 @@ pub fn add_corner_holes(
     added
 }
 
+/// Grid positions for stitching vias on `net`: inside the outline and clear
+/// of every pad, track and via (any net) and of the board edge.
+pub fn stitch_points(pcb: &Pcb, lib: &Library, net: &str, pitch: i64) -> Vec<Point> {
+    use crate::library::Hull;
+    use crate::pcb::CopperRef;
+    let Some(outline) = pcb.outline() else {
+        return Vec::new();
+    };
+    if pitch <= 0 {
+        return Vec::new();
+    }
+    let rules = &pcb.rules;
+    let (diameter, _) = rules.via_for(net);
+    let n = outline.len();
+    let edges: Vec<Hull> = (0..n)
+        .map(|i| Hull::capsule(outline[i], outline[(i + 1) % n], 0))
+        .collect();
+    let items: Vec<_> = pcb
+        .copper_items(lib)
+        .into_iter()
+        .filter(|it| !matches!(it.what, CopperRef::Pour(..)))
+        .collect();
+    let bounds = Rect::from_points(outline.iter().copied());
+    let mut out = Vec::new();
+    let mut y = bounds.min.y + pitch / 2;
+    while y < bounds.max.y {
+        let mut x = bounds.min.x + pitch / 2;
+        while x < bounds.max.x {
+            let p = Point::new(x, y);
+            let via = Hull::circle(p, diameter / 2);
+            let ok = crate::geom::point_in_polygon(p, &outline)
+                && edges
+                    .iter()
+                    .all(|e| e.distance(&via) >= rules.edge_clearance as f64)
+                && items.iter().all(|it| {
+                    // Keep a full clearance even to same-net copper so the
+                    // via never lands on a pad or track.
+                    let gap = rules.clearance_for(net, &it.net).max(rules.clearance);
+                    it.hull.distance(&via) >= gap as f64
+                });
+            if ok {
+                out.push(p);
+            }
+            x += pitch;
+        }
+        y += pitch;
+    }
+    out
+}
+
+/// Add stitching vias on `net` (see [`stitch_points`]). Returns how many.
+pub fn stitch_vias(pcb: &mut Pcb, lib: &Library, net: &str, pitch: i64, ids: &mut IdGen) -> usize {
+    let points = stitch_points(pcb, lib, net, pitch);
+    let (diameter, drill) = pcb.rules.via_for(net);
+    for &pos in &points {
+        pcb.vias.push(crate::pcb::Via {
+            id: ids.fresh(),
+            pos,
+            diameter,
+            drill,
+            net: net.into(),
+        });
+    }
+    points.len()
+}
+
 /// Summary numbers for the Board Info dialog.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BoardStats {
@@ -196,6 +262,22 @@ mod tests {
         assert_eq!(s.net_lengths[0].0, "+3V3");
         let sum: f64 = s.net_lengths.iter().map(|n| n.1).sum();
         assert!((sum - s.track_length_mm).abs() < 1e-9);
+    }
+
+    #[test]
+    fn stitching_keeps_the_board_drc_clean() {
+        let mut p = crate::examples::regulator();
+        let lib = p.library.clone();
+        let before = p.boards[0].pcb.vias.len();
+        let n = stitch_vias(&mut p.boards[0].pcb, &lib, "GND", mm(4.0), &mut p.ids);
+        assert!(n > 20, "only {n} vias");
+        let pcb = &mut p.boards[0].pcb;
+        assert_eq!(pcb.vias.len(), before + n);
+        pcb.rebuild_pours(&lib);
+        let drc = crate::drc::run(pcb, &lib, crate::units::Unit::Mm);
+        assert!(drc.is_empty(), "{drc:#?}");
+        // A second pass finds no room left at the same pitch.
+        assert!(stitch_points(pcb, &lib, "GND", mm(4.0)).is_empty());
     }
 
     #[test]
