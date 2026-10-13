@@ -272,3 +272,61 @@ pub fn handle_key(app: &AppState, ev: &web_sys::KeyboardEvent) -> bool {
 pub fn menu_items(menu: &str) -> Vec<&'static Command> {
     COMMANDS.iter().filter(|c| c.menu == menu).collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tabs(c: Ctx) -> &'static [&'static str] {
+        match c {
+            Ctx::Any => &["start", "sch", "pcb", "3d", "device", "sym", "fp"],
+            Ctx::Sch => &["sch"],
+            Ctx::Pcb => &["pcb"],
+            Ctx::Doc => &["sch", "pcb", "3d"],
+            Ctx::Canvas => &["sch", "pcb", "sym", "fp"],
+            Ctx::Sym => &["sym"],
+            Ctx::Fp => &["fp"],
+        }
+    }
+
+    #[test]
+    fn no_two_commands_share_a_key_in_the_same_editor() {
+        for (i, a) in COMMANDS.iter().enumerate() {
+            for b in &COMMANDS[i + 1..] {
+                if a.key.is_empty() || !a.key.eq_ignore_ascii_case(b.key) {
+                    continue;
+                }
+                // A command for a specific editor deliberately wins over a
+                // global one with the same key.
+                if (a.ctx == Ctx::Any) != (b.ctx == Ctx::Any) {
+                    continue;
+                }
+                let overlap = tabs(a.ctx).iter().any(|t| tabs(b.ctx).contains(t));
+                assert!(
+                    !overlap || a.run as usize == b.run as usize,
+                    "{} and {} both use {}",
+                    a.id,
+                    b.id,
+                    a.key
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ids_are_unique_and_menus_known() {
+        for (i, a) in COMMANDS.iter().enumerate() {
+            assert!(
+                a.menu.is_empty() || MENUS.contains(&a.menu),
+                "{} has unknown menu {}",
+                a.id,
+                a.menu
+            );
+            assert!(
+                !COMMANDS[i + 1..].iter().any(|b| b.id == a.id),
+                "duplicate id {}",
+                a.id
+            );
+        }
+    }
+}
