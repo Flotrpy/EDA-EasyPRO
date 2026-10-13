@@ -99,12 +99,26 @@ pub fn open_project_text(app: &AppState, name: &str, text: &str) {
     }
 }
 
-pub fn open_example(app: &AppState) {
-    let mut p = easypro_core::examples::blinker();
+/// Open one of the bundled examples by its index in `examples::all()`.
+pub fn open_example_at(app: &AppState, index: usize) {
+    let Some((name, make)) = easypro_core::examples::all().into_iter().nth(index) else {
+        return;
+    };
+    let mut p = make();
     p.created = js::now_iso();
     app.load_project(p, storage::new_key());
     persist(app);
-    app.ok("Opened example: 555 LED Blinker. Try Design > Design Rule Check, or press W in the PCB to route.");
+    app.ok(format!(
+        "Opened example: {name}. Try Design > Design Rule Check, or open the 3D view (Alt+3)."
+    ));
+}
+
+pub fn open_example(app: &AppState) {
+    open_example_at(app, 0);
+}
+
+pub fn open_example_regulator(app: &AppState) {
+    open_example_at(app, 1);
 }
 
 pub fn open_recent(app: &AppState, key: String) {

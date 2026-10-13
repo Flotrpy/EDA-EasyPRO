@@ -247,6 +247,9 @@ kbd {
 .recent-item { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 4px 10px; gap: 0 6px; }
 .recent-item:hover { background: var(--hover); }
 .recent-item.active .rname { font-weight: 700; }
+.example-list { display: flex; flex-direction: column; }
+.example-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.example-item:hover { background: var(--hover); }
 .recent-item .link { display: flex; gap: 6px; min-width: 0; color: var(--text); }
 .recent-item .rname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recent-item .rmeta { grid-column: 1; color: var(--muted); font-size: 11px; padding-left: 24px; }

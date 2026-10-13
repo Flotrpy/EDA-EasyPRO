@@ -43,6 +43,17 @@ pub fn StartPage() -> impl IntoView {
                     <RecentProjects />
                 </section>
                 <section class="card">
+                    <h3>"Examples"</h3>
+                    <div class="example-list">
+                        {easypro_core::examples::all().into_iter().enumerate().map(|(i, (name, _))| view! {
+                            <button class="example-item" on:click=move |_| crate::actions::open_example_at(&app, i)>
+                                <Icon name="book" />
+                                <span>{name}</span>
+                            </button>
+                        }).collect_view()}
+                    </div>
+                </section>
+                <section class="card">
                     <h3>"Workflow"</h3>
                     <ol class="steps">
                         <li><b>"Schematic"</b>" — place parts from the Common Library (Shift+F), draw wires (W), label nets (N)."</li>

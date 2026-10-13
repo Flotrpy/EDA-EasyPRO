@@ -57,6 +57,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("file.new", "New Project…", "File", "Ctrl+Alt+N", Any, "new", a::new_project),
     cmd!("file.open", "Open Project…", "File", "Ctrl+O", Any, "folder-open", a::open_project),
     cmd!("file.example", "Open Example: 555 LED Blinker", "File", "", Any, "book", a::open_example),
+    cmd!("file.example_reg", "Open Example: 3.3V Regulator (routed)", "File", "", Any, "book", a::open_example_regulator),
     cmd!("file.save", "Save", "File", "Ctrl+S", Any, "save", a::save),
     cmd!("file.save_as", "Save As…", "File", "Ctrl+Shift+S", Any, "save", a::save_as),
     cmd!("file.history", "Version History…", "File", "", Any, "history", a::version_history),
