@@ -266,6 +266,8 @@ pub struct AppState {
     /// Rotation and mirroring applied to the part or pin being placed.
     pub place_rot: RwSignal<f64>,
     pub place_mirror: RwSignal<bool>,
+    /// Track width chosen in the toolbar; None follows the design rules.
+    pub route_width: RwSignal<Option<i64>>,
     pub dark: Memo<bool>,
 }
 
@@ -323,6 +325,7 @@ impl AppState {
             library_pick: RwSignal::new(None),
             place_rot: RwSignal::new(0.0),
             place_mirror: RwSignal::new(false),
+            route_width: RwSignal::new(None),
             dark,
         }
     }

@@ -281,7 +281,10 @@ impl Handler for PcbHandler {
                         .unwrap_or((v.cursor, String::new()));
                     let rules = self.rules(app, k);
                     v.tool.points = vec![start];
-                    v.tool.width = rules.track_width_for(&net);
+                    v.tool.width = app
+                        .route_width
+                        .get_untracked()
+                        .unwrap_or_else(|| rules.track_width_for(&net));
                     v.tool.net = net.clone();
                     app.highlight_net
                         .set((!net.is_empty()).then_some(net.clone()));

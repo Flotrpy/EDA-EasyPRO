@@ -128,6 +128,7 @@ pub fn Toolbar() -> impl IntoView {
                         }).collect_view()}
                     </select>
                     <span class="swatch" style=move || format!("background: #{:06x}", app.active_layer.get().color())></span>
+                    <WidthPicker />
                     <Btn id="pcb.rebuild" />
                     <span class="sep"></span>
                     <Btn id="design.drc" label="DRC" />
@@ -161,5 +162,46 @@ pub fn Toolbar() -> impl IntoView {
             {move || matches!(kind.get(), "sch" | "pcb" | "3d").then(|| view! { <Btn id="export.fab" label="Fabrication Files" /> })}
             <Btn id="settings.prefs" />
         </div>
+    }
+}
+
+/// Track width for new routes; also applies to selected tracks.
+#[component]
+fn WidthPicker() -> impl IntoView {
+    let app = use_app();
+    let widths = [0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.8, 1.0, 1.5];
+    let on_change = move |ev| {
+        let v = event_target_value(&ev);
+        let w = v.parse::<f64>().ok().map(easypro_core::units::mm);
+        app.route_width.set(w);
+        let Some(w) = w else { return };
+        let sel = app.selection.get_untracked();
+        let Some(b) = app.tab_untracked().board() else {
+            return;
+        };
+        let has_tracks = app.project.with_untracked(|p| {
+            p.board(b)
+                .is_some_and(|bd| bd.pcb.tracks.iter().any(|t| sel.contains(&t.id)))
+        });
+        if has_tracks {
+            app.edit("Track width", |p| {
+                let lib = p.library.clone();
+                if let Some(bd) = p.board_mut(b) {
+                    for t in bd.pcb.tracks.iter_mut().filter(|t| sel.contains(&t.id)) {
+                        t.width = w;
+                    }
+                    bd.pcb.rebuild_pours(&lib);
+                }
+            });
+        }
+    };
+    view! {
+        <select class="width-select" title="Track width for new tracks (and selected tracks)" on:change=on_change>
+            <option value="rule" selected=move || app.route_width.get().is_none()>"Width: by rule"</option>
+            {widths.into_iter().map(|w| {
+                let nm = easypro_core::units::mm(w);
+                view! { <option value=w.to_string() selected=move || app.route_width.get() == Some(nm)>{format!("{w} mm")}</option> }
+            }).collect_view()}
+        </select>
     }
 }
