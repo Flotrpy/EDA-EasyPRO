@@ -142,6 +142,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("pcb.distribute_x", "Distribute Horizontally", "Route", "", Pcb, "list", a::distribute_x),
     cmd!("pcb.distribute_y", "Distribute Vertically", "Route", "", Pcb, "list", a::distribute_y),
     cmd!("pcb.rebuild", "Rebuild Copper Areas", "Route", "Shift+B", Pcb, "pour", a::rebuild_pours),
+    cmd!("pcb.stitch", "Via Stitching…", "Route", "", Pcb, "via", a::board_setup),
     // Symbol / footprint editor tools
     cmd!("sym.pin", "Pin", "Place", "P", Sym, "pin", a::tool_pin),
     cmd!("sym.line", "Line", "Place", "L", Sym, "line", a::tool_sym_line),

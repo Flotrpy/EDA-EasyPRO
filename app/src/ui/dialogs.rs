@@ -493,9 +493,62 @@ fn BoardSetup() -> impl IntoView {
                 </div>
             </div>
             <OutlineEditor />
+            <ViaStitching />
             <p class="hint">"Layer count and thickness go into the fab notes; the mask colour shows in the 3D view."</p>
             <div class="modal-foot"><button class="primary" on:click=move |_| app.dialog.set(None)>"Done"</button></div>
         </Modal>
+    }
+}
+
+/// Fill free board area with vias on one net, on a grid.
+#[component]
+fn ViaStitching() -> impl IntoView {
+    let app = use_app();
+    let b = actions::board_id(&app);
+    let nets = app
+        .project
+        .with_untracked(|p| b.and_then(|b| p.board(b)).map(|bd| bd.pcb.nets()))
+        .unwrap_or_default();
+    let net = RwSignal::new(if nets.iter().any(|n| n == "GND") {
+        "GND".to_string()
+    } else {
+        nets.first().cloned().unwrap_or_default()
+    });
+    let pitch = RwSignal::new(4.0f64);
+    let add = move |_| {
+        let (Some(b), n) = (b, net.get_untracked()) else {
+            return;
+        };
+        if n.is_empty() {
+            return;
+        }
+        let mut added = 0;
+        app.edit("Stitch vias", |p| {
+            let lib = p.library.clone();
+            if let Some(bd) = p.boards.iter_mut().find(|x| x.id == b) {
+                added = easypro_core::board::stitch_vias(
+                    &mut bd.pcb,
+                    &lib,
+                    &n,
+                    mm(pitch.get_untracked()),
+                    &mut p.ids,
+                );
+                bd.pcb.rebuild_pours(&lib);
+            }
+        });
+        app.ok(format!("Added {added} stitching vias on {n}"));
+    };
+    view! {
+        <h4>"Via stitching"</h4>
+        <div class="row">
+            <select on:change=move |ev| net.set(event_target_value(&ev))>
+                {nets.into_iter().map(|n| { let sel = n == net.get_untracked(); view! { <option value=n.clone() selected=sel>{n.clone()}</option> } }).collect_view()}
+            </select>
+            <select on:change=move |ev| pitch.set(event_target_value(&ev).parse().unwrap_or(4.0))>
+                {[2.5f64, 3.0, 4.0, 5.0, 8.0].into_iter().map(|v| view! { <option value=v.to_string() selected=v == 4.0>{format!("every {v} mm")}</option> }).collect_view()}
+            </select>
+            <button on:click=add><Icon name="via" />"Add Vias"</button>
+        </div>
     }
 }
 
