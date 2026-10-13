@@ -4,4 +4,5 @@
 //! exact, files diff cleanly and Gerber output never accumulates rounding.
 
 pub mod geom;
+pub mod layer;
 pub mod units;
