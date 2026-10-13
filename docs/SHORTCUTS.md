@@ -61,7 +61,7 @@ All of these can be rebound in **Settings → Keyboard Shortcuts**. Keys marked
 | F | Flip part to other side |
 | Q | Toggle mm / mil |
 | Shift+B | Rebuild copper areas |
-| Ctrl+Alt+N | Select whole net |
+| Alt+N | Select whole net |
 | Ctrl+Alt+D | Design rule check |
 | Ctrl+Alt+G | Fabrication package |
 | Alt (hold) | Move or draw off-grid |
