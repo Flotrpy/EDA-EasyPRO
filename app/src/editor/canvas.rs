@@ -913,6 +913,8 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
             <canvas
                 node_ref=node
                 tabindex="0"
+                role="application"
+                aria-label=match &kind { Kind::Sch { .. } => "Schematic editor", Kind::Pcb { .. } => "PCB editor", Kind::Sym(_) => "Symbol editor", Kind::Fp(_) => "Footprint editor" }
                 on:pointerdown=on_down
                 on:pointermove=on_move
                 on:pointerup=on_up
