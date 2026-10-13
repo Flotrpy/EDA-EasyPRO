@@ -452,6 +452,23 @@ mod tests {
     }
 
     #[test]
+    fn apertures_are_reused() {
+        use easypro_core::geom::Point;
+        let mut g = GerberWriter::default();
+        for i in 0..5 {
+            g.line(Point::new(0, i), Point::new(10, i), mm(0.25));
+        }
+        g.line(Point::new(0, 0), Point::new(10, 0), mm(0.5));
+        let text = g.finish("Copper,L1,Top", "Positive");
+        assert_eq!(text.matches("%ADD").count(), 2, "{text}");
+        assert_eq!(
+            text.matches("D10*").count(),
+            1,
+            "aperture selected once for consecutive lines"
+        );
+    }
+
+    #[test]
     fn layers_are_well_formed() {
         let p = blinker();
         let b = &p.boards[0];
