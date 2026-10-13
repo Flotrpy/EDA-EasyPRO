@@ -95,6 +95,17 @@ fn install_file_drop(app: AppState) {
     std::mem::forget((over, drop));
 }
 
+/// With autosave off, ask before leaving the page with unsaved edits.
+fn install_unload_guard(app: AppState) {
+    let h = window_event_listener(leptos::ev::beforeunload, move |ev| {
+        if app.dirty.get_untracked() && !app.settings.with_untracked(|s| s.autosave) {
+            ev.prevent_default();
+            ev.set_return_value("You have unsaved changes.");
+        }
+    });
+    std::mem::forget(h);
+}
+
 fn install_autosave(app: AppState) {
     let pending = StoredValue::new(0u64);
     Effect::new(move |_| {
@@ -263,6 +274,7 @@ fn App() -> impl IntoView {
     install_keyboard(app);
     install_autosave(app);
     install_file_drop(app);
+    install_unload_guard(app);
     install_live_drc(app);
     install_cross_probe(app);
     install_theme(app);
