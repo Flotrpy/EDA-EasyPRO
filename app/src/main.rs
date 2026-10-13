@@ -1,5 +1,6 @@
 //! EasyPRO web application.
 
+mod icons;
 mod js;
 mod state;
 mod storage;
