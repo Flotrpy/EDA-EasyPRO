@@ -189,6 +189,39 @@ impl Project {
         n != self.boards.len()
     }
 
+    /// Drop devices no part uses, then symbols and footprints no device or
+    /// board uses. Returns how many library entries were removed.
+    pub fn purge_unused_library(&mut self) -> usize {
+        let used_devices: std::collections::HashSet<String> = self
+            .boards
+            .iter()
+            .flat_map(|b| {
+                b.schematic
+                    .components()
+                    .map(|(_, c)| c.device.clone())
+                    .chain(b.pcb.components.iter().map(|c| c.device.clone()))
+            })
+            .collect();
+        let lib = &mut self.library;
+        let before = lib.devices.len() + lib.symbols.len() + lib.footprints.len();
+        lib.devices.retain(|id, _| used_devices.contains(id));
+        let used_symbols: std::collections::HashSet<String> =
+            lib.devices.values().map(|d| d.symbol.clone()).collect();
+        let mut used_fps: std::collections::HashSet<String> = lib
+            .devices
+            .values()
+            .filter_map(|d| d.footprint.clone())
+            .collect();
+        used_fps.extend(
+            self.boards
+                .iter()
+                .flat_map(|b| b.pcb.components.iter().map(|c| c.footprint.clone())),
+        );
+        lib.symbols.retain(|id, _| used_symbols.contains(id));
+        lib.footprints.retain(|id, _| used_fps.contains(id));
+        before - (lib.devices.len() + lib.symbols.len() + lib.footprints.len())
+    }
+
     pub fn add_sheet(&mut self, board: Id) -> Option<Id> {
         let id = self.next_id();
         let b = self.board_mut(board)?;
@@ -248,6 +281,22 @@ mod tests {
         let mut q2 = q.clone();
         let id = q2.next_id();
         assert!(id > q.boards[0].pcb.max_id());
+    }
+
+    #[test]
+    fn purge_keeps_what_is_used() {
+        let mut p = crate::examples::blinker();
+        p.library
+            .import_device(crate::builtin::library(), "dev:ESP32-WROOM-32");
+        let n = p.library.devices.len();
+        assert_eq!(
+            p.purge_unused_library(),
+            3,
+            "ESP32 device, symbol and footprint"
+        );
+        assert_eq!(p.library.devices.len(), n - 1);
+        assert!(p.library.validate().is_empty());
+        assert_eq!(p.purge_unused_library(), 0);
     }
 
     #[test]
