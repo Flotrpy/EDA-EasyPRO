@@ -11,6 +11,8 @@ pub struct Camera {
     pub zoom: f64,
     /// Viewport size in CSS pixels.
     pub size: (f64, f64),
+    /// Mirror left-right: looking at a board from below.
+    pub flip: bool,
 }
 
 pub const MIN_ZOOM: f64 = 0.05;
@@ -22,21 +24,31 @@ impl Default for Camera {
             center: (0.0, 0.0),
             zoom: 8.0,
             size: (800.0, 600.0),
+            flip: false,
         }
     }
 }
 
 impl Camera {
+    /// -1 when the view is mirrored.
+    pub fn sx(&self) -> f64 {
+        if self.flip {
+            -1.0
+        } else {
+            1.0
+        }
+    }
+
     pub fn to_screen(&self, wx: f64, wy: f64) -> (f64, f64) {
         (
-            (wx - self.center.0) * self.zoom + self.size.0 / 2.0,
+            self.sx() * (wx - self.center.0) * self.zoom + self.size.0 / 2.0,
             self.size.1 / 2.0 - (wy - self.center.1) * self.zoom,
         )
     }
 
     pub fn to_world(&self, sx: f64, sy: f64) -> (f64, f64) {
         (
-            (sx - self.size.0 / 2.0) / self.zoom + self.center.0,
+            self.sx() * (sx - self.size.0 / 2.0) / self.zoom + self.center.0,
             (self.size.1 / 2.0 - sy) / self.zoom + self.center.1,
         )
     }
@@ -47,7 +59,7 @@ impl Camera {
     }
 
     pub fn pan_pixels(&mut self, dx: f64, dy: f64) {
-        self.center.0 -= dx / self.zoom;
+        self.center.0 -= self.sx() * dx / self.zoom;
         self.center.1 += dy / self.zoom;
     }
 
@@ -92,11 +104,31 @@ mod tests {
             center: (10.0, -5.0),
             zoom: 4.0,
             size: (400.0, 300.0),
+            flip: false,
         };
         let (sx, sy) = c.to_screen(12.5, 3.0);
         let (wx, wy) = c.to_world(sx, sy);
         assert!((wx - 12.5).abs() < 1e-9 && (wy - 3.0).abs() < 1e-9);
         assert_eq!(c.to_screen(10.0, -5.0), (200.0, 150.0));
+    }
+
+    #[test]
+    fn flipped_view_round_trips_and_mirrors() {
+        let mut c = Camera {
+            center: (10.0, 0.0),
+            zoom: 2.0,
+            size: (200.0, 100.0),
+            flip: true,
+        };
+        let (sx, _) = c.to_screen(15.0, 0.0);
+        assert!(sx < 100.0, "points right of centre appear on the left");
+        let (wx, _) = c.to_world(sx, 50.0);
+        assert!((wx - 15.0).abs() < 1e-9);
+        c.pan_pixels(10.0, 0.0);
+        assert!(
+            c.center.0 > 10.0,
+            "dragging right moves the view the mirrored way"
+        );
     }
 
     #[test]

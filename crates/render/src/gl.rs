@@ -54,10 +54,11 @@ uniform vec4 u_color;
 uniform vec4 u_major;
 uniform int u_lines;
 uniform float u_dpr;
+uniform float u_flip;
 out vec4 o;
 void main() {
     vec2 px = vec2(gl_FragCoord.x, gl_FragCoord.y) / u_dpr;
-    vec2 world = (px - u_size * 0.5) / u_zoom + u_center;
+    vec2 world = (px - u_size * 0.5) / u_zoom * vec2(u_flip, 1.0) + u_center;
     vec2 g = world / u_step;
     vec2 d = abs(g - round(g)) * u_step * u_zoom;
     vec2 gm = world / (u_step * 5.0);
@@ -340,6 +341,10 @@ impl Renderer {
             );
             gl.uniform1f(gl.get_uniform_location(p, "u_step").as_ref(), step as f32);
             gl.uniform1f(gl.get_uniform_location(p, "u_dpr").as_ref(), dpr as f32);
+            gl.uniform1f(
+                gl.get_uniform_location(p, "u_flip").as_ref(),
+                cam.sx() as f32,
+            );
             gl.uniform4fv_with_f32_array(gl.get_uniform_location(p, "u_color").as_ref(), &g.color);
             gl.uniform4fv_with_f32_array(gl.get_uniform_location(p, "u_major").as_ref(), &g.major);
             gl.uniform1i(
@@ -362,7 +367,7 @@ impl Renderer {
         );
         gl.uniform2f(
             self.u.scale.as_ref(),
-            (2.0 * cam.zoom / cam.size.0) as f32,
+            (cam.sx() * 2.0 * cam.zoom / cam.size.0) as f32,
             (2.0 * cam.zoom / cam.size.1) as f32,
         );
         // At least half a pixel of half-width: one-pixel minimum strokes.
