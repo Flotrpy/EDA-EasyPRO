@@ -16,4 +16,5 @@ pub mod pour;
 pub mod project;
 pub mod schematic;
 pub mod shape;
+pub mod sync;
 pub mod units;
