@@ -245,8 +245,16 @@ fn render(app: &AppState, k: &Kind, v: &mut View) {
     overlay(app, k, v, &mut m);
     v.renderer.set_overlay(&m);
     if let Some(b) = &v.built {
+        // Pad labels only become readable when zoomed in.
+        let zoomed = v.camera.zoom >= 18.0;
+        let order: Vec<LayerDraw> = b
+            .order
+            .iter()
+            .copied()
+            .filter(|d| zoomed || d.key != SceneLayer::PadText)
+            .collect();
         v.renderer
-            .draw(&v.camera, b.background, b.grid, &b.order, v.dpr);
+            .draw(&v.camera, b.background, b.grid, &order, v.dpr);
     }
 }
 

@@ -187,7 +187,7 @@ impl Handler for PcbHandler {
                             alpha: 0.55,
                         })
                     }
-                    SceneLayer::Pcb(Layer::Multi) | SceneLayer::Drill => {}
+                    SceneLayer::Pcb(Layer::Multi) | SceneLayer::Drill | SceneLayer::PadText => {}
                     SceneLayer::Pcb(_)
                     | SceneLayer::Ratsnest
                     | SceneLayer::Overlay
@@ -205,6 +205,10 @@ impl Handler for PcbHandler {
             });
             order.push(LayerDraw {
                 key: SceneLayer::Drill,
+                alpha: 1.0,
+            });
+            order.push(LayerDraw {
+                key: SceneLayer::PadText,
                 alpha: 1.0,
             });
             for key in &keys {
