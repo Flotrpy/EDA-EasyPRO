@@ -525,6 +525,35 @@ mod tests {
     }
 
     #[test]
+    fn hull_distance_combinations() {
+        let sq = Hull::polygon(
+            Rect::new(Point::new(0, 0), Point::new(10, 10))
+                .corners()
+                .to_vec(),
+        );
+        // Point to polygon, capsule to polygon, polygon to polygon.
+        assert_eq!(Hull::circle(Point::new(15, 5), 2).distance(&sq), 3.0);
+        assert_eq!(
+            Hull::capsule(Point::new(20, 0), Point::new(20, 10), 4).distance(&sq),
+            6.0
+        );
+        let other = Hull::polygon(
+            Rect::new(Point::new(13, 0), Point::new(20, 10))
+                .corners()
+                .to_vec(),
+        );
+        assert_eq!(sq.distance(&other), 3.0);
+        // Overlap and containment are zero; the order does not matter.
+        assert_eq!(Hull::circle(Point::new(5, 5), 1).distance(&sq), 0.0);
+        assert_eq!(sq.distance(&Hull::circle(Point::new(15, 5), 2)), 3.0);
+        // Rounded rectangles grow by their radius.
+        assert_eq!(
+            sq.inflate(1).distance(&Hull::circle(Point::new(15, 5), 0)),
+            4.0
+        );
+    }
+
+    #[test]
     fn hull_distance_with_rotation() {
         let mut p = pad(PadShape::Rect, 2.0, 1.0);
         p.rotation = 90.0;
