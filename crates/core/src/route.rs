@@ -25,7 +25,11 @@ pub fn path90(a: Point, b: Point, horizontal_first: bool) -> Vec<Point> {
     if a.x == b.x || a.y == b.y {
         return vec![a, b];
     }
-    let mid = if horizontal_first { Point::new(b.x, a.y) } else { Point::new(a.x, b.y) };
+    let mid = if horizontal_first {
+        Point::new(b.x, a.y)
+    } else {
+        Point::new(a.x, b.y)
+    };
     vec![a, mid, b]
 }
 
@@ -38,7 +42,10 @@ pub fn first_collision<'a>(
     clearance: i64,
     items: &'a [CopperItem],
 ) -> Option<&'a CopperItem> {
-    let segs: Vec<Hull> = path.windows(2).map(|w| Hull::capsule(w[0], w[1], width / 2)).collect();
+    let segs: Vec<Hull> = path
+        .windows(2)
+        .map(|w| Hull::capsule(w[0], w[1], width / 2))
+        .collect();
     items.iter().find(|it| {
         it.layer.shares_copper(layer)
             && (net.is_empty() || it.net != net)
@@ -78,11 +85,20 @@ mod tests {
     #[test]
     fn shapes() {
         let p = path45(Point::new(0, 0), Point::new(10, 4), false);
-        assert_eq!(p, vec![Point::new(0, 0), Point::new(6, 0), Point::new(10, 4)]);
+        assert_eq!(
+            p,
+            vec![Point::new(0, 0), Point::new(6, 0), Point::new(10, 4)]
+        );
         let p = path45(Point::new(0, 0), Point::new(10, 4), true);
-        assert_eq!(p, vec![Point::new(0, 0), Point::new(4, 4), Point::new(10, 4)]);
+        assert_eq!(
+            p,
+            vec![Point::new(0, 0), Point::new(4, 4), Point::new(10, 4)]
+        );
         assert_eq!(path45(Point::new(0, 0), Point::new(5, 5), true).len(), 2);
-        assert_eq!(path90(Point::new(0, 0), Point::new(3, 4), true)[1], Point::new(3, 0));
+        assert_eq!(
+            path90(Point::new(0, 0), Point::new(3, 4), true)[1],
+            Point::new(3, 0)
+        );
     }
 
     #[test]
@@ -93,7 +109,16 @@ mod tests {
             layer: Layer::Multi,
             hull: Hull::circle(Point::new(60, 0), 5),
         };
-        let (p, ok) = best_path45(Point::new(0, 0), Point::new(100, 40), false, 2, Layer::TopCopper, "A", 3, &[blocker]);
+        let (p, ok) = best_path45(
+            Point::new(0, 0),
+            Point::new(100, 40),
+            false,
+            2,
+            Layer::TopCopper,
+            "A",
+            3,
+            &[blocker],
+        );
         assert!(ok);
         assert_eq!(p[1], Point::new(40, 40));
     }

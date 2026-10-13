@@ -35,13 +35,20 @@ mod tests {
         let lib = library();
         let problems = lib.validate();
         assert!(problems.is_empty(), "{problems:#?}");
-        assert!(lib.devices.len() >= 40, "only {} devices", lib.devices.len());
+        assert!(
+            lib.devices.len() >= 40,
+            "only {} devices",
+            lib.devices.len()
+        );
     }
 
     #[test]
     fn search_finds_parts() {
         let lib = library();
-        assert!(lib.search("0603 resistor").iter().any(|d| d.footprint.as_deref() == Some("fp:0603")));
+        assert!(lib
+            .search("0603 resistor")
+            .iter()
+            .any(|d| d.footprint.as_deref() == Some("fp:0603")));
         assert!(!lib.search("esp32").is_empty());
         assert!(lib.search("definitely-not-a-part").is_empty());
     }

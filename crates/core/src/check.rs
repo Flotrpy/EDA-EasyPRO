@@ -33,7 +33,13 @@ pub struct Issue {
 
 impl Issue {
     pub fn new(severity: Severity, message: impl Into<String>) -> Issue {
-        Issue { severity, message: message.into(), sheet: None, pos: None, objects: vec![] }
+        Issue {
+            severity,
+            message: message.into(),
+            sheet: None,
+            pos: None,
+            objects: vec![],
+        }
     }
 
     pub fn at(mut self, pos: Point) -> Issue {

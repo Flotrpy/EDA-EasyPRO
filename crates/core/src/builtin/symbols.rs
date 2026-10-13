@@ -13,11 +13,19 @@ fn p(x: f64, y: f64) -> Point {
 }
 
 fn line(ax: f64, ay: f64, bx: f64, by: f64) -> Shape {
-    Shape::Line { a: p(ax, ay), b: p(bx, by), width: W }
+    Shape::Line {
+        a: p(ax, ay),
+        b: p(bx, by),
+        width: W,
+    }
 }
 
 fn poly(pts: &[(f64, f64)], fill: bool) -> Shape {
-    Shape::Polygon { points: pts.iter().map(|&(x, y)| p(x, y)).collect(), width: W, fill }
+    Shape::Polygon {
+        points: pts.iter().map(|&(x, y)| p(x, y)).collect(),
+        width: W,
+        fill,
+    }
 }
 
 fn pin(number: &str, name: &str, x: f64, y: f64, angle: f64, len: f64, kind: PinKind) -> Pin {
@@ -33,18 +41,33 @@ fn pin(number: &str, name: &str, x: f64, y: f64, angle: f64, len: f64, kind: Pin
 }
 
 /// Two-terminal part along the X axis, pins at x = ±200 mil.
-fn two_pin(id: &str, name: &str, body_half: f64, graphics: Vec<Shape>, kinds: (PinKind, PinKind)) -> Symbol {
+fn two_pin(
+    id: &str,
+    name: &str,
+    body_half: f64,
+    graphics: Vec<Shape>,
+    kinds: (PinKind, PinKind),
+) -> Symbol {
     let len = 200.0 - body_half;
     Symbol {
         id: id.into(),
         name: name.into(),
-        pins: vec![pin("1", "1", -200.0, 0.0, 0.0, len, kinds.0), pin("2", "2", 200.0, 0.0, 180.0, len, kinds.1)],
+        pins: vec![
+            pin("1", "1", -200.0, 0.0, 0.0, len, kinds.0),
+            pin("2", "2", 200.0, 0.0, 180.0, len, kinds.1),
+        ],
         graphics,
     }
 }
 
 pub fn resistor() -> Symbol {
-    two_pin("sym:resistor", "Resistor", 100.0, vec![Shape::rect(p(-100.0, -35.0), p(100.0, 35.0), W)], (PinKind::Passive, PinKind::Passive))
+    two_pin(
+        "sym:resistor",
+        "Resistor",
+        100.0,
+        vec![Shape::rect(p(-100.0, -35.0), p(100.0, 35.0), W)],
+        (PinKind::Passive, PinKind::Passive),
+    )
 }
 
 pub fn capacitor() -> Symbol {
@@ -52,7 +75,10 @@ pub fn capacitor() -> Symbol {
         "sym:capacitor",
         "Capacitor",
         20.0,
-        vec![line(-20.0, -70.0, -20.0, 70.0), line(20.0, -70.0, 20.0, 70.0)],
+        vec![
+            line(-20.0, -70.0, -20.0, 70.0),
+            line(20.0, -70.0, 20.0, 70.0),
+        ],
         (PinKind::Passive, PinKind::Passive),
     )
 }
@@ -64,7 +90,13 @@ pub fn capacitor_polarized() -> Symbol {
         20.0,
         vec![
             Shape::rect(p(-30.0, -70.0), p(-10.0, 70.0), W),
-            Shape::Arc { center: p(90.0, 0.0), radius: mil(80.0), start: 120.0, sweep: 120.0, width: W },
+            Shape::Arc {
+                center: p(90.0, 0.0),
+                radius: mil(80.0),
+                start: 120.0,
+                sweep: 120.0,
+                width: W,
+            },
             line(-80.0, 50.0, -50.0, 50.0),
             line(-65.0, 35.0, -65.0, 65.0),
         ],
@@ -74,15 +106,38 @@ pub fn capacitor_polarized() -> Symbol {
 
 pub fn inductor() -> Symbol {
     let arcs = (0..4)
-        .map(|i| Shape::Arc { center: p(-75.0 + 50.0 * i as f64, 0.0), radius: mil(25.0), start: 0.0, sweep: 180.0, width: W })
+        .map(|i| Shape::Arc {
+            center: p(-75.0 + 50.0 * i as f64, 0.0),
+            radius: mil(25.0),
+            start: 0.0,
+            sweep: 180.0,
+            width: W,
+        })
         .collect();
-    two_pin("sym:inductor", "Inductor", 100.0, arcs, (PinKind::Passive, PinKind::Passive))
+    two_pin(
+        "sym:inductor",
+        "Inductor",
+        100.0,
+        arcs,
+        (PinKind::Passive, PinKind::Passive),
+    )
 }
 
 pub fn ferrite() -> Symbol {
     let mut g = vec![Shape::rect(p(-80.0, -30.0), p(80.0, 30.0), W)];
-    g.push(Shape::Rect { a: p(-60.0, -20.0), b: p(60.0, 20.0), width: W, fill: true });
-    two_pin("sym:ferrite", "Ferrite Bead", 80.0, g, (PinKind::Passive, PinKind::Passive))
+    g.push(Shape::Rect {
+        a: p(-60.0, -20.0),
+        b: p(60.0, 20.0),
+        width: W,
+        fill: true,
+    });
+    two_pin(
+        "sym:ferrite",
+        "Ferrite Bead",
+        80.0,
+        g,
+        (PinKind::Passive, PinKind::Passive),
+    )
 }
 
 pub fn fuse() -> Symbol {
@@ -90,13 +145,19 @@ pub fn fuse() -> Symbol {
         "sym:fuse",
         "Fuse",
         100.0,
-        vec![Shape::rect(p(-100.0, -30.0), p(100.0, 30.0), W), line(-100.0, 0.0, 100.0, 0.0)],
+        vec![
+            Shape::rect(p(-100.0, -30.0), p(100.0, 30.0), W),
+            line(-100.0, 0.0, 100.0, 0.0),
+        ],
         (PinKind::Passive, PinKind::Passive),
     )
 }
 
 fn diode_body(extra: Vec<Shape>) -> Vec<Shape> {
-    let mut g = vec![poly(&[(-40.0, 50.0), (-40.0, -50.0), (40.0, 0.0)], true), line(40.0, -50.0, 40.0, 50.0)];
+    let mut g = vec![
+        poly(&[(-40.0, 50.0), (-40.0, -50.0), (40.0, 0.0)], true),
+        line(40.0, -50.0, 40.0, 50.0),
+    ];
     g.extend(extra);
     g
 }
@@ -121,19 +182,34 @@ pub fn schottky() -> Symbol {
     diode_like(
         "sym:schottky",
         "Schottky Diode",
-        diode_body(vec![line(40.0, 50.0, 60.0, 50.0), line(60.0, 50.0, 60.0, 35.0), line(40.0, -50.0, 20.0, -50.0), line(20.0, -50.0, 20.0, -35.0)]),
+        diode_body(vec![
+            line(40.0, 50.0, 60.0, 50.0),
+            line(60.0, 50.0, 60.0, 35.0),
+            line(40.0, -50.0, 20.0, -50.0),
+            line(20.0, -50.0, 20.0, -35.0),
+        ]),
     )
 }
 
 pub fn zener() -> Symbol {
-    diode_like("sym:zener", "Zener Diode", diode_body(vec![line(40.0, 50.0, 60.0, 65.0), line(40.0, -50.0, 20.0, -65.0)]))
+    diode_like(
+        "sym:zener",
+        "Zener Diode",
+        diode_body(vec![
+            line(40.0, 50.0, 60.0, 65.0),
+            line(40.0, -50.0, 20.0, -65.0),
+        ]),
+    )
 }
 
 pub fn led() -> Symbol {
     let arrow = |x: f64| {
         vec![
             line(x, 60.0, x + 40.0, 100.0),
-            poly(&[(x + 40.0, 100.0), (x + 22.0, 94.0), (x + 34.0, 82.0)], true),
+            poly(
+                &[(x + 40.0, 100.0), (x + 22.0, 94.0), (x + 34.0, 82.0)],
+                true,
+            ),
         ]
     };
     let mut extra = arrow(-10.0);
@@ -147,7 +223,12 @@ fn bjt(id: &str, name: &str, pnp: bool) -> Symbol {
         line(-20.0, -60.0, -20.0, 60.0),
         line(-20.0, 25.0, 60.0, 80.0),
         line(-20.0, -25.0, 60.0, -80.0),
-        Shape::Circle { center: p(15.0, 0.0), radius: mil(90.0), width: W, fill: false },
+        Shape::Circle {
+            center: p(15.0, 0.0),
+            radius: mil(90.0),
+            width: W,
+            fill: false,
+        },
     ];
     if pnp {
         g.push(poly(&[(-20.0, -25.0), (5.0, -30.0), (-6.0, -46.0)], true));
@@ -159,17 +240,43 @@ fn bjt(id: &str, name: &str, pnp: bool) -> Symbol {
         name: name.into(),
         pins: vec![
             pin("1", "B", -100.0, 0.0, 0.0, 80.0, PinKind::Input),
-            pin("2", "E", 60.0, if pnp { 100.0 } else { -100.0 }, if pnp { 270.0 } else { 90.0 }, 20.0, PinKind::Passive),
-            pin("3", "C", 60.0, if pnp { -100.0 } else { 100.0 }, if pnp { 90.0 } else { 270.0 }, 20.0, PinKind::Passive),
+            pin(
+                "2",
+                "E",
+                60.0,
+                if pnp { 100.0 } else { -100.0 },
+                if pnp { 270.0 } else { 90.0 },
+                20.0,
+                PinKind::Passive,
+            ),
+            pin(
+                "3",
+                "C",
+                60.0,
+                if pnp { -100.0 } else { 100.0 },
+                if pnp { 90.0 } else { 270.0 },
+                20.0,
+                PinKind::Passive,
+            ),
         ],
         graphics: if pnp {
             // Emitter on top for PNP so the supply sits above.
             g.into_iter()
                 .map(|s| match s {
-                    Shape::Line { a, b, width } => Shape::Line { a: Point::new(a.x, -a.y), b: Point::new(b.x, -b.y), width },
-                    Shape::Polygon { points, width, fill } => {
-                        Shape::Polygon { points: points.iter().map(|q| Point::new(q.x, -q.y)).collect(), width, fill }
-                    }
+                    Shape::Line { a, b, width } => Shape::Line {
+                        a: Point::new(a.x, -a.y),
+                        b: Point::new(b.x, -b.y),
+                        width,
+                    },
+                    Shape::Polygon {
+                        points,
+                        width,
+                        fill,
+                    } => Shape::Polygon {
+                        points: points.iter().map(|q| Point::new(q.x, -q.y)).collect(),
+                        width,
+                        fill,
+                    },
                     other => other,
                 })
                 .collect()
@@ -199,21 +306,54 @@ fn mosfet(id: &str, name: &str, p_channel: bool) -> Symbol {
         line(-20.0, -45.0 * s, 60.0, -45.0 * s),
         line(-20.0, 0.0, 60.0, 0.0),
         line(60.0, 0.0, 60.0, -45.0 * s),
-        Shape::Circle { center: p(15.0, 0.0), radius: mil(90.0), width: W, fill: false },
+        Shape::Circle {
+            center: p(15.0, 0.0),
+            radius: mil(90.0),
+            width: W,
+            fill: false,
+        },
     ];
     if p_channel {
         g.push(poly(&[(20.0, 0.0), (-5.0, 12.0), (-5.0, -12.0)], true));
     } else {
         g.push(poly(&[(-20.0, 0.0), (5.0, 12.0), (5.0, -12.0)], true));
     }
-    let (sy, dy) = if p_channel { (100.0, -100.0) } else { (-100.0, 100.0) };
+    let (sy, dy) = if p_channel {
+        (100.0, -100.0)
+    } else {
+        (-100.0, 100.0)
+    };
     Symbol {
         id: id.into(),
         name: name.into(),
         pins: vec![
-            pin("1", "G", -100.0, if p_channel { 50.0 } else { -50.0 }, 0.0, 60.0, PinKind::Input),
-            pin("2", "S", 60.0, sy, if p_channel { 270.0 } else { 90.0 }, 55.0, PinKind::Passive),
-            pin("3", "D", 60.0, dy, if p_channel { 90.0 } else { 270.0 }, 55.0, PinKind::Passive),
+            pin(
+                "1",
+                "G",
+                -100.0,
+                if p_channel { 50.0 } else { -50.0 },
+                0.0,
+                60.0,
+                PinKind::Input,
+            ),
+            pin(
+                "2",
+                "S",
+                60.0,
+                sy,
+                if p_channel { 270.0 } else { 90.0 },
+                55.0,
+                PinKind::Passive,
+            ),
+            pin(
+                "3",
+                "D",
+                60.0,
+                dy,
+                if p_channel { 90.0 } else { 270.0 },
+                55.0,
+                PinKind::Passive,
+            ),
         ],
         graphics: g,
     }
@@ -268,8 +408,18 @@ pub fn button() -> Symbol {
         "Push Button",
         100.0,
         vec![
-            Shape::Circle { center: p(-80.0, 0.0), radius: mil(15.0), width: W, fill: false },
-            Shape::Circle { center: p(80.0, 0.0), radius: mil(15.0), width: W, fill: false },
+            Shape::Circle {
+                center: p(-80.0, 0.0),
+                radius: mil(15.0),
+                width: W,
+                fill: false,
+            },
+            Shape::Circle {
+                center: p(80.0, 0.0),
+                radius: mil(15.0),
+                width: W,
+                fill: false,
+            },
             line(-100.0, 50.0, 100.0, 50.0),
             line(0.0, 50.0, 0.0, 100.0),
             line(-40.0, 100.0, 40.0, 100.0),
@@ -284,8 +434,18 @@ pub fn mounting_hole() -> Symbol {
         name: "Mounting Hole".into(),
         pins: vec![],
         graphics: vec![
-            Shape::Circle { center: Point::ZERO, radius: mil(60.0), width: W, fill: false },
-            Shape::Circle { center: Point::ZERO, radius: mil(30.0), width: W, fill: false },
+            Shape::Circle {
+                center: Point::ZERO,
+                radius: mil(60.0),
+                width: W,
+                fill: false,
+            },
+            Shape::Circle {
+                center: Point::ZERO,
+                radius: mil(30.0),
+                width: W,
+                fill: false,
+            },
         ],
     }
 }
@@ -295,25 +455,56 @@ pub fn test_point() -> Symbol {
         id: "sym:test-point".into(),
         name: "Test Point".into(),
         pins: vec![pin("1", "1", 0.0, -100.0, 90.0, 60.0, PinKind::Passive)],
-        graphics: vec![Shape::Circle { center: p(0.0, 0.0), radius: mil(40.0), width: W, fill: false }],
+        graphics: vec![Shape::Circle {
+            center: p(0.0, 0.0),
+            radius: mil(40.0),
+            width: W,
+            fill: false,
+        }],
     }
 }
 
 /// Rectangular IC body with pins on the left and right.
-pub fn ic_box(id: &str, name: &str, left: &[(&str, &str, PinKind)], right: &[(&str, &str, PinKind)]) -> Symbol {
+pub fn ic_box(
+    id: &str,
+    name: &str,
+    left: &[(&str, &str, PinKind)],
+    right: &[(&str, &str, PinKind)],
+) -> Symbol {
     let rows = left.len().max(right.len()) as i64;
-    let longest = left.iter().chain(right).map(|(_, n, _)| n.chars().count()).max().unwrap_or(1) as f64;
+    let longest = left
+        .iter()
+        .chain(right)
+        .map(|(_, n, _)| n.chars().count())
+        .max()
+        .unwrap_or(1) as f64;
     // Half width: room for names on both sides, rounded up to 100 mil.
     let half = (((longest * 2.0 * 47.0 + 120.0) / 2.0 / 100.0).ceil() * 100.0).max(200.0);
     let top = ((rows - 1) as f64 * 100.0 / 2.0 / 100.0).ceil() * 100.0;
     let mut pins = Vec::new();
     for (i, (num, nm, kind)) in left.iter().enumerate() {
-        let mut pn = pin(num, nm, -half - 100.0, top - i as f64 * 100.0, 0.0, 100.0, *kind);
+        let mut pn = pin(
+            num,
+            nm,
+            -half - 100.0,
+            top - i as f64 * 100.0,
+            0.0,
+            100.0,
+            *kind,
+        );
         pn.hide_name = false;
         pins.push(pn);
     }
     for (i, (num, nm, kind)) in right.iter().enumerate() {
-        let mut pn = pin(num, nm, half + 100.0, top - i as f64 * 100.0, 180.0, 100.0, *kind);
+        let mut pn = pin(
+            num,
+            nm,
+            half + 100.0,
+            top - i as f64 * 100.0,
+            180.0,
+            100.0,
+            *kind,
+        );
         pn.hide_name = false;
         pins.push(pn);
     }
@@ -322,7 +513,12 @@ pub fn ic_box(id: &str, name: &str, left: &[(&str, &str, PinKind)], right: &[(&s
         id: id.into(),
         name: name.into(),
         pins,
-        graphics: vec![Shape::Rect { a: p(-half, top + 100.0), b: p(half, bottom - 100.0), width: W, fill: false }],
+        graphics: vec![Shape::Rect {
+            a: p(-half, top + 100.0),
+            b: p(half, bottom - 100.0),
+            width: W,
+            fill: false,
+        }],
     }
 }
 
@@ -332,13 +528,35 @@ pub fn connector(id: &str, name: &str, pins: &[&str]) -> Symbol {
     let top = ((n as f64 - 1.0) * 100.0 / 2.0 / 100.0).ceil() * 100.0;
     let bottom = top - (n as f64 - 1.0) * 100.0;
     let mut out = Vec::new();
-    let mut g = vec![Shape::rect(p(-100.0, top + 100.0), p(100.0, bottom - 100.0), W)];
+    let mut g = vec![Shape::rect(
+        p(-100.0, top + 100.0),
+        p(100.0, bottom - 100.0),
+        W,
+    )];
     for (i, nm) in pins.iter().enumerate() {
         let y = top - i as f64 * 100.0;
-        let mut pn = pin(&(i + 1).to_string(), nm, -300.0, y, 0.0, 200.0, PinKind::Passive);
+        let mut pn = pin(
+            &(i + 1).to_string(),
+            nm,
+            -300.0,
+            y,
+            0.0,
+            200.0,
+            PinKind::Passive,
+        );
         pn.hide_name = nm.chars().all(|c| c.is_ascii_digit());
         out.push(pn);
-        g.push(Shape::Rect { a: p(-60.0, y - 15.0), b: p(-20.0, y + 15.0), width: W, fill: true });
+        g.push(Shape::Rect {
+            a: p(-60.0, y - 15.0),
+            b: p(-20.0, y + 15.0),
+            width: W,
+            fill: true,
+        });
     }
-    Symbol { id: id.into(), name: name.into(), pins: out, graphics: g }
+    Symbol {
+        id: id.into(),
+        name: name.into(),
+        pins: out,
+        graphics: g,
+    }
 }

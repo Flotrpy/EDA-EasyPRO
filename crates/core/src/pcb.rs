@@ -52,7 +52,11 @@ impl PcbComponent {
 
     /// Map a footprint layer to the board layer for this placement.
     pub fn board_layer(&self, l: Layer) -> Layer {
-        if self.side == Side::Bottom { l.flipped() } else { l }
+        if self.side == Side::Bottom {
+            l.flipped()
+        } else {
+            l
+        }
     }
 
     pub fn bbox(&self, fp: &Footprint) -> Rect {
@@ -63,7 +67,14 @@ impl PcbComponent {
     pub fn designator_pos(&self, fp: &Footprint) -> Point {
         let off = self.designator_offset.unwrap_or_else(|| {
             let b = fp.bbox();
-            Point::new(0, if b.is_empty() { mm(1.5) } else { b.max.y + mm(0.6) })
+            Point::new(
+                0,
+                if b.is_empty() {
+                    mm(1.5)
+                } else {
+                    b.max.y + mm(0.6)
+                },
+            )
         });
         self.pos + crate::geom::rotate(off, self.rotation)
     }
@@ -178,17 +189,27 @@ impl Default for DesignRules {
 
 impl DesignRules {
     pub fn class_for(&self, net: &str) -> Option<&NetClass> {
-        self.net_classes.iter().find(|c| c.nets.iter().any(|n| n == net))
+        self.net_classes
+            .iter()
+            .find(|c| c.nets.iter().any(|n| n == net))
     }
 
     pub fn clearance_for(&self, a: &str, b: &str) -> i64 {
-        let ca = self.class_for(a).map(|c| c.clearance).unwrap_or(self.clearance);
-        let cb = self.class_for(b).map(|c| c.clearance).unwrap_or(self.clearance);
+        let ca = self
+            .class_for(a)
+            .map(|c| c.clearance)
+            .unwrap_or(self.clearance);
+        let cb = self
+            .class_for(b)
+            .map(|c| c.clearance)
+            .unwrap_or(self.clearance);
         ca.max(cb)
     }
 
     pub fn track_width_for(&self, net: &str) -> i64 {
-        self.class_for(net).map(|c| c.track_width).unwrap_or(self.track_width)
+        self.class_for(net)
+            .map(|c| c.track_width)
+            .unwrap_or(self.track_width)
     }
 
     pub fn via_for(&self, net: &str) -> (i64, i64) {
@@ -277,11 +298,17 @@ impl Pcb {
     }
 
     pub fn object_count(&self) -> usize {
-        self.components.len() + self.tracks.len() + self.vias.len() + self.pours.len() + self.graphics.len()
+        self.components.len()
+            + self.tracks.len()
+            + self.vias.len()
+            + self.pours.len()
+            + self.graphics.len()
     }
 
     pub fn max_id(&self) -> Id {
-        self.components.iter().map(|o| o.id)
+        self.components
+            .iter()
+            .map(|o| o.id)
             .chain(self.tracks.iter().map(|o| o.id))
             .chain(self.vias.iter().map(|o| o.id))
             .chain(self.pours.iter().map(|o| o.id))
@@ -295,7 +322,10 @@ impl Pcb {
     }
 
     /// Every pad on the board with its world hull and net.
-    pub fn pads<'a>(&'a self, lib: &'a Library) -> impl Iterator<Item = (&'a PcbComponent, &'a Pad, Hull)> + 'a {
+    pub fn pads<'a>(
+        &'a self,
+        lib: &'a Library,
+    ) -> impl Iterator<Item = (&'a PcbComponent, &'a Pad, Hull)> + 'a {
         self.components.iter().flat_map(move |c| {
             let tf = c.transform();
             lib.footprints
@@ -316,17 +346,30 @@ impl Pcb {
                 crate::library::PadKind::Npth { .. } => continue,
             };
             out.push(CopperItem {
-                what: CopperRef::Pad { comp: c.id, pad: pad.number.clone() },
+                what: CopperRef::Pad {
+                    comp: c.id,
+                    pad: pad.number.clone(),
+                },
                 net: c.net_of(&pad.number).to_string(),
                 layer,
                 hull,
             });
         }
         for t in &self.tracks {
-            out.push(CopperItem { what: CopperRef::Track(t.id), net: t.net.clone(), layer: t.layer, hull: t.hull() });
+            out.push(CopperItem {
+                what: CopperRef::Track(t.id),
+                net: t.net.clone(),
+                layer: t.layer,
+                hull: t.hull(),
+            });
         }
         for v in &self.vias {
-            out.push(CopperItem { what: CopperRef::Via(v.id), net: v.net.clone(), layer: Layer::Multi, hull: v.hull() });
+            out.push(CopperItem {
+                what: CopperRef::Via(v.id),
+                net: v.net.clone(),
+                layer: Layer::Multi,
+                hull: v.hull(),
+            });
         }
         for p in &self.pours {
             for (i, r) in p.filled.iter().enumerate() {
@@ -344,12 +387,19 @@ impl Pcb {
     /// The board shape, from outline-layer graphics. Closed shapes are used
     /// directly; otherwise line and arc segments are chained end to end.
     pub fn outline(&self) -> Option<Vec<Point>> {
-        let shapes: Vec<&Shape> = self.graphics.iter().filter(|g| g.layer == Layer::Outline).map(|g| &g.shape).collect();
+        let shapes: Vec<&Shape> = self
+            .graphics
+            .iter()
+            .filter(|g| g.layer == Layer::Outline)
+            .map(|g| &g.shape)
+            .collect();
         for s in &shapes {
             match s {
                 Shape::Rect { a, b, .. } => return Some(Rect::new(*a, *b).corners().to_vec()),
                 Shape::Polygon { points, .. } if points.len() >= 3 => return Some(points.clone()),
-                Shape::Circle { center, radius, .. } => return Some(circle_polygon(*center, *radius, 64)),
+                Shape::Circle { center, radius, .. } => {
+                    return Some(circle_polygon(*center, *radius, 64))
+                }
                 _ => {}
             }
         }
@@ -358,7 +408,13 @@ impl Pcb {
             .filter_map(|s| match s {
                 Shape::Line { a, b, .. } => Some(vec![*a, *b]),
                 Shape::Polyline { points, .. } => Some(points.clone()),
-                Shape::Arc { center, radius, start, sweep, .. } => Some(arc_points(*center, *radius, *start, *sweep, 6.0)),
+                Shape::Arc {
+                    center,
+                    radius,
+                    start,
+                    sweep,
+                    ..
+                } => Some(arc_points(*center, *radius, *start, *sweep, 6.0)),
                 _ => None,
             })
             .collect();
@@ -366,7 +422,9 @@ impl Pcb {
         let tol = mm(0.01) as f64;
         while !segs.is_empty() {
             let end = *path.last()?;
-            let idx = segs.iter().position(|s| s[0].dist(end) <= tol || s.last().unwrap().dist(end) <= tol)?;
+            let idx = segs
+                .iter()
+                .position(|s| s[0].dist(end) <= tol || s.last().unwrap().dist(end) <= tol)?;
             let mut s = segs.remove(idx);
             if s[0].dist(end) > tol {
                 s.reverse();
@@ -436,7 +494,11 @@ impl Pcb {
             if let Some(b) = &board {
                 let n = b.len();
                 for i in 0..n {
-                    obstacles.push(Hull::capsule(b[i], b[(i + 1) % n], self.rules.edge_clearance - clearance));
+                    obstacles.push(Hull::capsule(
+                        b[i],
+                        b[(i + 1) % n],
+                        self.rules.edge_clearance - clearance,
+                    ));
                 }
             }
             for (c, pad, _) in self.pads(lib) {
@@ -448,7 +510,14 @@ impl Pcb {
                 Some(b) => clip_to(&p.outline, b),
                 None => p.outline.clone(),
             };
-            p.filled = crate::pour::fill(&outline, &obstacles, clearance, &keep, p.remove_islands && !keep.is_empty(), (mm(0.3) * mm(0.3)) as f64);
+            p.filled = crate::pour::fill(
+                &outline,
+                &obstacles,
+                clearance,
+                &keep,
+                p.remove_islands && !keep.is_empty(),
+                (mm(0.3) * mm(0.3)) as f64,
+            );
             rebuilt.push(p);
         }
         self.pours = rebuilt;
@@ -460,12 +529,26 @@ fn clip_to(poly: &[Point], board: &[Point]) -> Vec<Point> {
     use i_overlay::core::fill_rule::FillRule;
     use i_overlay::core::overlay_rule::OverlayRule;
     use i_overlay::float::overlay::FloatOverlay;
-    let f = |p: &[Point]| vec![p.iter().map(|q| [q.x as f64, q.y as f64]).collect::<Vec<_>>()];
-    let res = FloatOverlay::with_subj_and_clip(&f(poly), &f(board)).overlay(OverlayRule::Intersect, FillRule::NonZero);
+    let f = |p: &[Point]| {
+        vec![p
+            .iter()
+            .map(|q| [q.x as f64, q.y as f64])
+            .collect::<Vec<_>>()]
+    };
+    let res = FloatOverlay::with_subj_and_clip(&f(poly), &f(board))
+        .overlay(OverlayRule::Intersect, FillRule::NonZero);
     res.into_iter()
         .filter_map(|s| s.into_iter().next())
-        .map(|c| c.iter().map(|p| Point::from_f(p[0], p[1])).collect::<Vec<_>>())
-        .max_by(|a, b| crate::geom::polygon_area(a).abs().total_cmp(&crate::geom::polygon_area(b).abs()))
+        .map(|c| {
+            c.iter()
+                .map(|p| Point::from_f(p[0], p[1]))
+                .collect::<Vec<_>>()
+        })
+        .max_by(|a, b| {
+            crate::geom::polygon_area(a)
+                .abs()
+                .total_cmp(&crate::geom::polygon_area(b).abs())
+        })
         .unwrap_or_default()
 }
 
@@ -477,7 +560,11 @@ mod tests {
         PcbGraphic {
             id: Id(id),
             layer: Layer::Outline,
-            shape: Shape::line(Point::new(mm(a.0), mm(a.1)), Point::new(mm(b.0), mm(b.1)), mm(0.1)),
+            shape: Shape::line(
+                Point::new(mm(a.0), mm(a.1)),
+                Point::new(mm(b.0), mm(b.1)),
+                mm(0.1),
+            ),
         }
     }
 

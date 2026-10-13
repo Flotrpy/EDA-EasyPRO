@@ -40,7 +40,10 @@ impl Side {
 
 impl Layer {
     pub fn is_copper(self) -> bool {
-        matches!(self, Layer::TopCopper | Layer::BottomCopper | Layer::Inner(_) | Layer::Multi)
+        matches!(
+            self,
+            Layer::TopCopper | Layer::BottomCopper | Layer::Inner(_) | Layer::Multi
+        )
     }
 
     pub fn name(self) -> String {
@@ -136,7 +139,9 @@ impl Layer {
 
     /// Whether a copper item on `self` electrically exists on `other`.
     pub fn shares_copper(self, other: Layer) -> bool {
-        self.is_copper() && other.is_copper() && (self == other || self == Layer::Multi || other == Layer::Multi)
+        self.is_copper()
+            && other.is_copper()
+            && (self == other || self == Layer::Multi || other == Layer::Multi)
     }
 }
 
@@ -147,7 +152,10 @@ mod tests {
     #[test]
     fn stack_sizes() {
         assert_eq!(Layer::copper_stack(1), vec![Layer::TopCopper]);
-        assert_eq!(Layer::copper_stack(2), vec![Layer::TopCopper, Layer::BottomCopper]);
+        assert_eq!(
+            Layer::copper_stack(2),
+            vec![Layer::TopCopper, Layer::BottomCopper]
+        );
         assert_eq!(Layer::copper_stack(4).len(), 4);
         assert_eq!(Layer::copper_stack(4)[2], Layer::Inner(2));
     }

@@ -18,11 +18,19 @@ pub struct Region {
 impl Region {
     pub fn contains(&self, p: Point) -> bool {
         crate::geom::point_in_polygon(p, &self.outer)
-            && !self.holes.iter().any(|h| crate::geom::point_in_polygon(p, h) && !on_boundary(p, h))
+            && !self
+                .holes
+                .iter()
+                .any(|h| crate::geom::point_in_polygon(p, h) && !on_boundary(p, h))
     }
 
     pub fn area(&self) -> f64 {
-        polygon_area(&self.outer).abs() - self.holes.iter().map(|h| polygon_area(h).abs()).sum::<f64>()
+        polygon_area(&self.outer).abs()
+            - self
+                .holes
+                .iter()
+                .map(|h| polygon_area(h).abs())
+                .sum::<f64>()
     }
 }
 
@@ -45,7 +53,8 @@ pub fn offset_polygon(poly: &[Point], r: i64) -> Vec<Point> {
     if n < 3 || r <= 0 {
         return poly;
     }
-    let normal_angle = |a: Point, b: Point| ((b.y - a.y) as f64).atan2((b.x - a.x) as f64).to_degrees() - 90.0;
+    let normal_angle =
+        |a: Point, b: Point| ((b.y - a.y) as f64).atan2((b.x - a.x) as f64).to_degrees() - 90.0;
     let mut out = Vec::new();
     for i in 0..n {
         let prev = poly[(i + n - 1) % n];
@@ -97,14 +106,18 @@ pub fn fill(
     let shapes = if clip.is_empty() {
         vec![subj.clone()]
     } else {
-        FloatOverlay::with_subj_and_clip(&subj, &clip).overlay(OverlayRule::Difference, FillRule::NonZero)
+        FloatOverlay::with_subj_and_clip(&subj, &clip)
+            .overlay(OverlayRule::Difference, FillRule::NonZero)
     };
     shapes
         .into_iter()
         .filter_map(|shape| {
             let mut it = shape.into_iter();
             let outer = from_f(&it.next()?);
-            let region = Region { outer, holes: it.map(|h| from_f(&h)).collect() };
+            let region = Region {
+                outer,
+                holes: it.map(|h| from_f(&h)).collect(),
+            };
             (region.area() >= min_area).then_some(region)
         })
         .filter(|r| !remove_islands || keep.iter().any(|k| touches(r, k)))
@@ -112,7 +125,10 @@ pub fn fill(
 }
 
 fn touches(region: &Region, hull: &Hull) -> bool {
-    hull.points.iter().chain(hull.to_polygon().iter()).any(|p| region.contains(*p))
+    hull.points
+        .iter()
+        .chain(hull.to_polygon().iter())
+        .any(|p| region.contains(*p))
 }
 
 #[cfg(test)]
@@ -146,7 +162,14 @@ mod tests {
         // A wall splits the area in two; only the half touching `keep` stays.
         let wall = Hull::capsule(Point::new(0, -2000), Point::new(0, 2000), 10);
         let keep = Hull::circle(Point::new(500, 0), 5);
-        let all = fill(&square(Point::ZERO, 1000), &[wall.clone()], 10, &[], false, 0.0);
+        let all = fill(
+            &square(Point::ZERO, 1000),
+            &[wall.clone()],
+            10,
+            &[],
+            false,
+            0.0,
+        );
         assert_eq!(all.len(), 2);
         let kept = fill(&square(Point::ZERO, 1000), &[wall], 10, &[keep], true, 0.0);
         assert_eq!(kept.len(), 1);

@@ -58,7 +58,10 @@ impl std::fmt::Display for LoadError {
         match self {
             LoadError::Json(e) => write!(f, "invalid project file: {e}"),
             LoadError::NotAProject => write!(f, "this file is not an EasyPRO project"),
-            LoadError::TooNew(v) => write!(f, "project was saved by a newer version (format {v}); please update"),
+            LoadError::TooNew(v) => write!(
+                f,
+                "project was saved by a newer version (format {v}); please update"
+            ),
         }
     }
 }
@@ -77,7 +80,11 @@ impl Project {
         pcb.graphics.push(PcbGraphic {
             id: ids.next(),
             layer: Layer::Outline,
-            shape: Shape::Polygon { points: outline.corners().to_vec(), width: mm(0.1), fill: false },
+            shape: Shape::Polygon {
+                points: outline.corners().to_vec(),
+                width: mm(0.1),
+                fill: false,
+            },
         });
         Project {
             format: FORMAT.into(),
@@ -90,7 +97,13 @@ impl Project {
             boards: vec![Board {
                 id: board_id,
                 name: "Board1".into(),
-                schematic: Schematic { sheets: vec![Sheet { id: sheet_id, name: "Sheet1".into(), ..Default::default() }] },
+                schematic: Schematic {
+                    sheets: vec![Sheet {
+                        id: sheet_id,
+                        name: "Sheet1".into(),
+                        ..Default::default()
+                    }],
+                },
                 pcb,
             }],
             ids,
@@ -159,7 +172,11 @@ impl Project {
         let id = self.next_id();
         let b = self.board_mut(board)?;
         let n = b.schematic.sheets.len() + 1;
-        b.schematic.sheets.push(Sheet { id, name: format!("Sheet{n}"), ..Default::default() });
+        b.schematic.sheets.push(Sheet {
+            id,
+            name: format!("Sheet{n}"),
+            ..Default::default()
+        });
         Some(id)
     }
 }
@@ -187,10 +204,19 @@ mod tests {
 
     #[test]
     fn rejects_foreign_and_future_files() {
-        assert!(matches!(Project::from_json("{}"), Err(LoadError::NotAProject)));
+        assert!(matches!(
+            Project::from_json("{}"),
+            Err(LoadError::NotAProject)
+        ));
         let future = format!(r#"{{"format":"{FORMAT}","version":99}}"#);
-        assert!(matches!(Project::from_json(&future), Err(LoadError::TooNew(99))));
-        assert!(matches!(Project::from_json("not json"), Err(LoadError::Json(_))));
+        assert!(matches!(
+            Project::from_json(&future),
+            Err(LoadError::TooNew(99))
+        ));
+        assert!(matches!(
+            Project::from_json("not json"),
+            Err(LoadError::Json(_))
+        ));
     }
 
     #[test]

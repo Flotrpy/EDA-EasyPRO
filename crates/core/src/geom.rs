@@ -3,7 +3,9 @@
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Neg, Sub};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub struct Point {
     pub x: i64,
     pub y: i64,
@@ -76,8 +78,14 @@ impl Default for Rect {
 
 impl Rect {
     pub const EMPTY: Rect = Rect {
-        min: Point { x: i64::MAX, y: i64::MAX },
-        max: Point { x: i64::MIN, y: i64::MIN },
+        min: Point {
+            x: i64::MAX,
+            y: i64::MAX,
+        },
+        max: Point {
+            x: i64::MIN,
+            y: i64::MIN,
+        },
     };
 
     pub fn new(a: Point, b: Point) -> Rect {
@@ -99,11 +107,19 @@ impl Rect {
     }
 
     pub fn width(&self) -> i64 {
-        if self.is_empty() { 0 } else { self.max.x - self.min.x }
+        if self.is_empty() {
+            0
+        } else {
+            self.max.x - self.min.x
+        }
     }
 
     pub fn height(&self) -> i64 {
-        if self.is_empty() { 0 } else { self.max.y - self.min.y }
+        if self.is_empty() {
+            0
+        } else {
+            self.max.y - self.min.y
+        }
     }
 
     pub fn center(&self) -> Point {
@@ -144,7 +160,10 @@ impl Rect {
     }
 
     pub fn intersects(&self, o: &Rect) -> bool {
-        !(o.min.x > self.max.x || o.max.x < self.min.x || o.min.y > self.max.y || o.max.y < self.min.y)
+        !(o.min.x > self.max.x
+            || o.max.x < self.min.x
+            || o.min.y > self.max.y
+            || o.max.y < self.min.y)
     }
 
     pub fn from_points(pts: impl IntoIterator<Item = Point>) -> Rect {
@@ -176,11 +195,18 @@ pub struct Transform {
 
 impl Transform {
     pub fn new(offset: Point, rotation: f64, mirror: bool) -> Self {
-        Transform { offset, rotation: normalize_angle(rotation), mirror }
+        Transform {
+            offset,
+            rotation: normalize_angle(rotation),
+            mirror,
+        }
     }
 
     pub fn translate(offset: Point) -> Self {
-        Transform { offset, ..Default::default() }
+        Transform {
+            offset,
+            ..Default::default()
+        }
     }
 
     pub fn apply(&self, p: Point) -> Point {
@@ -210,7 +236,11 @@ impl Transform {
 /// Map an angle to `[0, 360)`.
 pub fn normalize_angle(a: f64) -> f64 {
     let r = a.rem_euclid(360.0);
-    if (r - 360.0).abs() < 1e-9 { 0.0 } else { r }
+    if (r - 360.0).abs() < 1e-9 {
+        0.0
+    } else {
+        r
+    }
 }
 
 /// Rotate a point about the origin. Multiples of 90° are exact.
@@ -327,7 +357,9 @@ pub fn point_polygon_dist(p: Point, poly: &[Point]) -> f64 {
     if point_in_polygon(p, poly) {
         return 0.0;
     }
-    edges(poly).map(|(a, b)| point_segment_dist(p, a, b)).fold(f64::INFINITY, f64::min)
+    edges(poly)
+        .map(|(a, b)| point_segment_dist(p, a, b))
+        .fold(f64::INFINITY, f64::min)
 }
 
 /// Distance from a segment to a polygon's area (0 if touching or inside).
@@ -335,15 +367,21 @@ pub fn segment_polygon_dist(a: Point, b: Point, poly: &[Point]) -> f64 {
     if point_in_polygon(a, poly) || point_in_polygon(b, poly) {
         return 0.0;
     }
-    edges(poly).map(|(c, d)| segment_segment_dist(a, b, c, d)).fold(f64::INFINITY, f64::min)
+    edges(poly)
+        .map(|(c, d)| segment_segment_dist(a, b, c, d))
+        .fold(f64::INFINITY, f64::min)
 }
 
 /// Distance between the areas of two polygons.
 pub fn polygon_polygon_dist(p: &[Point], q: &[Point]) -> f64 {
-    if p.first().is_some_and(|&v| point_in_polygon(v, q)) || q.first().is_some_and(|&v| point_in_polygon(v, p)) {
+    if p.first().is_some_and(|&v| point_in_polygon(v, q))
+        || q.first().is_some_and(|&v| point_in_polygon(v, p))
+    {
         return 0.0;
     }
-    edges(p).map(|(a, b)| segment_polygon_dist(a, b, q)).fold(f64::INFINITY, f64::min)
+    edges(p)
+        .map(|(a, b)| segment_polygon_dist(a, b, q))
+        .fold(f64::INFINITY, f64::min)
 }
 
 /// Iterate closed polygon edges.
@@ -354,7 +392,10 @@ pub fn edges(poly: &[Point]) -> impl Iterator<Item = (Point, Point)> + '_ {
 
 /// Signed area (positive when counter-clockwise), in nm².
 pub fn polygon_area(poly: &[Point]) -> f64 {
-    edges(poly).map(|(a, b)| a.x as f64 * b.y as f64 - b.x as f64 * a.y as f64).sum::<f64>() / 2.0
+    edges(poly)
+        .map(|(a, b)| a.x as f64 * b.y as f64 - b.x as f64 * a.y as f64)
+        .sum::<f64>()
+        / 2.0
 }
 
 /// Approximate a circle as a polygon with `n` vertices.
@@ -362,18 +403,30 @@ pub fn circle_polygon(c: Point, r: i64, n: usize) -> Vec<Point> {
     (0..n)
         .map(|i| {
             let t = i as f64 / n as f64 * std::f64::consts::TAU;
-            Point::from_f(c.x as f64 + r as f64 * t.cos(), c.y as f64 + r as f64 * t.sin())
+            Point::from_f(
+                c.x as f64 + r as f64 * t.cos(),
+                c.y as f64 + r as f64 * t.sin(),
+            )
         })
         .collect()
 }
 
 /// Points along a circular arc from `start_deg` sweeping `sweep_deg`.
-pub fn arc_points(c: Point, r: i64, start_deg: f64, sweep_deg: f64, max_seg_deg: f64) -> Vec<Point> {
+pub fn arc_points(
+    c: Point,
+    r: i64,
+    start_deg: f64,
+    sweep_deg: f64,
+    max_seg_deg: f64,
+) -> Vec<Point> {
     let n = ((sweep_deg.abs() / max_seg_deg).ceil() as usize).max(1);
     (0..=n)
         .map(|i| {
             let t = (start_deg + sweep_deg * i as f64 / n as f64).to_radians();
-            Point::from_f(c.x as f64 + r as f64 * t.cos(), c.y as f64 + r as f64 * t.sin())
+            Point::from_f(
+                c.x as f64 + r as f64 * t.cos(),
+                c.y as f64 + r as f64 * t.sin(),
+            )
         })
         .collect()
 }
@@ -402,22 +455,44 @@ mod tests {
 
     #[test]
     fn segment_distances() {
-        let d = segment_segment_dist(Point::new(0, 0), Point::new(10, 0), Point::new(0, 5), Point::new(10, 5));
+        let d = segment_segment_dist(
+            Point::new(0, 0),
+            Point::new(10, 0),
+            Point::new(0, 5),
+            Point::new(10, 5),
+        );
         assert_eq!(d, 5.0);
-        assert!(segments_intersect(Point::new(0, 0), Point::new(10, 10), Point::new(0, 10), Point::new(10, 0)));
-        assert!(point_on_segment(Point::new(5, 0), Point::new(0, 0), Point::new(10, 0)));
-        assert!(!point_on_segment(Point::new(5, 1), Point::new(0, 0), Point::new(10, 0)));
+        assert!(segments_intersect(
+            Point::new(0, 0),
+            Point::new(10, 10),
+            Point::new(0, 10),
+            Point::new(10, 0)
+        ));
+        assert!(point_on_segment(
+            Point::new(5, 0),
+            Point::new(0, 0),
+            Point::new(10, 0)
+        ));
+        assert!(!point_on_segment(
+            Point::new(5, 1),
+            Point::new(0, 0),
+            Point::new(10, 0)
+        ));
     }
 
     #[test]
     fn polygon_queries() {
-        let sq = Rect::new(Point::new(0, 0), Point::new(10, 10)).corners().to_vec();
+        let sq = Rect::new(Point::new(0, 0), Point::new(10, 10))
+            .corners()
+            .to_vec();
         assert!(point_in_polygon(Point::new(5, 5), &sq));
         assert!(point_in_polygon(Point::new(0, 5), &sq));
         assert!(!point_in_polygon(Point::new(11, 5), &sq));
         assert_eq!(point_polygon_dist(Point::new(13, 5), &sq), 3.0);
         assert_eq!(polygon_area(&sq), 100.0);
-        let other = Rect::new(Point::new(20, 0), Point::new(30, 10)).corners().to_vec();
+        let other = Rect::new(Point::new(20, 0), Point::new(30, 10))
+            .corners()
+            .to_vec();
         assert_eq!(polygon_polygon_dist(&sq, &other), 10.0);
     }
 

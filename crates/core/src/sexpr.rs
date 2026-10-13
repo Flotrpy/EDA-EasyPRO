@@ -60,7 +60,10 @@ pub fn parse(text: &str) -> Result<Sexp, String> {
             '(' => stack.push(vec![]),
             ')' => {
                 let list = stack.pop().ok_or("unbalanced )")?;
-                stack.last_mut().ok_or(format!("unbalanced ) at {i}"))?.push(Sexp::List(list));
+                stack
+                    .last_mut()
+                    .ok_or(format!("unbalanced ) at {i}"))?
+                    .push(Sexp::List(list));
             }
             '"' => {
                 let mut s = String::new();

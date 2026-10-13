@@ -42,7 +42,9 @@ pub struct Connectivity {
 
 impl Connectivity {
     pub fn net_of_pin(&self, comp: Id, pin: &str) -> Option<&Net> {
-        self.pin_net.get(&(comp, pin.to_string())).map(|&i| &self.nets[i])
+        self.pin_net
+            .get(&(comp, pin.to_string()))
+            .map(|&i| &self.nets[i])
     }
 
     pub fn net_named(&self, name: &str) -> Option<&Net> {
@@ -78,9 +80,22 @@ impl Dsu {
 }
 
 enum Node {
-    Pin { sheet: usize, comp: Id, designator: String, number: String, name: String, kind: PinKind, pos: Point },
-    Wire { id: Id },
-    Name { name: String, power: bool },
+    Pin {
+        sheet: usize,
+        comp: Id,
+        designator: String,
+        number: String,
+        name: String,
+        kind: PinKind,
+        pos: Point,
+    },
+    Wire {
+        id: Id,
+    },
+    Name {
+        name: String,
+        power: bool,
+    },
 }
 
 type SegIndex = RTree<GeomWithData<Rectangle<[i64; 2]>, (usize, Point, Point)>>;
@@ -90,7 +105,10 @@ fn seg_index(segs: &[(usize, Point, Point)]) -> SegIndex {
         segs.iter()
             .map(|&(node, a, b)| {
                 let r = Rect::new(a, b);
-                GeomWithData::new(Rectangle::from_corners([r.min.x, r.min.y], [r.max.x, r.max.y]), (node, a, b))
+                GeomWithData::new(
+                    Rectangle::from_corners([r.min.x, r.min.y], [r.max.x, r.max.y]),
+                    (node, a, b),
+                )
             })
             .collect(),
     )
@@ -136,8 +154,12 @@ pub fn connectivity(sch: &Schematic, lib: &Library) -> Connectivity {
         // Pins.
         let mut pins_here: HashMap<Point, Vec<usize>> = HashMap::new();
         for c in &sheet.components {
-            let Some(dev) = lib.devices.get(&c.device) else { continue };
-            let Some(sym) = lib.symbols.get(&dev.symbol) else { continue };
+            let Some(dev) = lib.devices.get(&c.device) else {
+                continue;
+            };
+            let Some(sym) = lib.symbols.get(&dev.symbol) else {
+                continue;
+            };
             let tf = c.transform();
             for pin in &sym.pins {
                 let pos = tf.apply(pin.pos);
@@ -164,9 +186,16 @@ pub fn connectivity(sch: &Schematic, lib: &Library) -> Connectivity {
         }
 
         // Labels and ports attach to wires or pins under their anchor.
-        let attach = |name: &str, pos: Point, power: bool, nodes: &mut Vec<Node>, joins: &mut Vec<(usize, usize)>| {
+        let attach = |name: &str,
+                      pos: Point,
+                      power: bool,
+                      nodes: &mut Vec<Node>,
+                      joins: &mut Vec<(usize, usize)>| {
             let n = nodes.len();
-            nodes.push(Node::Name { name: name.to_string(), power });
+            nodes.push(Node::Name {
+                name: name.to_string(),
+                power,
+            });
             for &(m, _, _) in segments_at(&index, pos) {
                 joins.push((n, m));
             }
@@ -196,7 +225,9 @@ pub fn connectivity(sch: &Schematic, lib: &Library) -> Connectivity {
         }
         let mut dots = Vec::new();
         for (&p, &n) in &counts {
-            let through = segments_at(&index, p).filter(|(_, a, b)| *a != p && *b != p).count();
+            let through = segments_at(&index, p)
+                .filter(|(_, a, b)| *a != p && *b != p)
+                .count();
             // Interior polyline vertices count as two connections.
             let bends = sheet
                 .wires
@@ -233,14 +264,24 @@ pub fn connectivity(sch: &Schematic, lib: &Library) -> Connectivity {
         groups.entry(dsu.find(i)).or_default().push(i);
     }
 
-    let mut out = Connectivity { junctions, ..Default::default() };
+    let mut out = Connectivity {
+        junctions,
+        ..Default::default()
+    };
     for members in groups.values() {
         let mut pins = Vec::new();
         let mut names: Vec<(bool, String)> = Vec::new();
         let mut wires = Vec::new();
         for &i in members {
             match &nodes[i] {
-                Node::Pin { designator, number, name, kind, comp, .. } => pins.push(NetNode {
+                Node::Pin {
+                    designator,
+                    number,
+                    name,
+                    kind,
+                    comp,
+                    ..
+                } => pins.push(NetNode {
                     comp: *comp,
                     designator: designator.clone(),
                     pin: number.clone(),
@@ -255,7 +296,14 @@ pub fn connectivity(sch: &Schematic, lib: &Library) -> Connectivity {
             continue;
         }
         if pins.len() == 1 && names.is_empty() && wires.is_empty() {
-            if let Node::Pin { sheet, comp, number, pos, .. } = &nodes[members[0]] {
+            if let Node::Pin {
+                sheet,
+                comp,
+                number,
+                pos,
+                ..
+            } = &nodes[members[0]]
+            {
                 out.unconnected.push((*sheet, *comp, number.clone(), *pos));
             }
             continue;
@@ -263,10 +311,15 @@ pub fn connectivity(sch: &Schematic, lib: &Library) -> Connectivity {
         // Power ports win over labels; ties break alphabetically.
         names.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
         names.dedup_by(|a, b| a.1 == b.1);
-        pins.sort_by(|a, b| natural_cmp(&a.designator, &b.designator).then(natural_cmp(&a.pin, &b.pin)));
+        pins.sort_by(|a, b| {
+            natural_cmp(&a.designator, &b.designator).then(natural_cmp(&a.pin, &b.pin))
+        });
         let (name, named) = match names.first() {
             Some((_, n)) => (n.clone(), true),
-            None => (format!("Net-({}-{})", pins[0].designator, pins[0].pin), false),
+            None => (
+                format!("Net-({}-{})", pins[0].designator, pins[0].pin),
+                false,
+            ),
         };
         let idx = out.nets.len();
         for p in &pins {
@@ -275,7 +328,12 @@ pub fn connectivity(sch: &Schematic, lib: &Library) -> Connectivity {
         for w in wires {
             out.wire_net.insert(w, idx);
         }
-        out.nets.push(Net { name, named, nodes: pins, aliases: names.into_iter().map(|n| n.1).collect() });
+        out.nets.push(Net {
+            name,
+            named,
+            nodes: pins,
+            aliases: names.into_iter().map(|n| n.1).collect(),
+        });
     }
     out
 }
@@ -306,12 +364,34 @@ mod tests {
             id: "res".into(),
             name: "Resistor".into(),
             pins: vec![
-                Pin { number: "1".into(), name: "1".into(), pos: Point::new(-20, 0), angle: 0.0, length: 10, kind: PinKind::Passive, hide_name: true },
-                Pin { number: "2".into(), name: "2".into(), pos: Point::new(20, 0), angle: 180.0, length: 10, kind: PinKind::Passive, hide_name: true },
+                Pin {
+                    number: "1".into(),
+                    name: "1".into(),
+                    pos: Point::new(-20, 0),
+                    angle: 0.0,
+                    length: 10,
+                    kind: PinKind::Passive,
+                    hide_name: true,
+                },
+                Pin {
+                    number: "2".into(),
+                    name: "2".into(),
+                    pos: Point::new(20, 0),
+                    angle: 180.0,
+                    length: 10,
+                    kind: PinKind::Passive,
+                    hide_name: true,
+                },
             ],
             graphics: vec![],
         });
-        l.add_device(Device { id: "R".into(), name: "R".into(), prefix: "R".into(), symbol: "res".into(), ..Default::default() });
+        l.add_device(Device {
+            id: "R".into(),
+            name: "R".into(),
+            prefix: "R".into(),
+            symbol: "res".into(),
+            ..Default::default()
+        });
         l
     }
 
@@ -332,7 +412,10 @@ mod tests {
     }
 
     fn wire(id: u64, pts: &[(i64, i64)]) -> Wire {
-        Wire { id: Id(id), points: pts.iter().map(|&(x, y)| Point::new(x, y)).collect() }
+        Wire {
+            id: Id(id),
+            points: pts.iter().map(|&(x, y)| Point::new(x, y)).collect(),
+        }
     }
 
     #[test]
@@ -354,10 +437,21 @@ mod tests {
         let mut a = Sheet::default();
         a.components.push(comp(1, "R1", 0, 0));
         a.wires.push(wire(2, &[(20, 0), (40, 0)]));
-        a.labels.push(NetLabel { id: Id(3), name: "SDA".into(), pos: Point::new(40, 0), rotation: 0.0 });
+        a.labels.push(NetLabel {
+            id: Id(3),
+            name: "SDA".into(),
+            pos: Point::new(40, 0),
+            rotation: 0.0,
+        });
         let mut b = Sheet::default();
         b.components.push(comp(4, "R2", 0, 0));
-        b.ports.push(NetPort { id: Id(5), name: "SDA".into(), pos: Point::new(-20, 0), style: PortStyle::Port, rotation: 0.0 });
+        b.ports.push(NetPort {
+            id: Id(5),
+            name: "SDA".into(),
+            pos: Point::new(-20, 0),
+            style: PortStyle::Port,
+            rotation: 0.0,
+        });
         let sch = Schematic { sheets: vec![a, b] };
         let c = connectivity(&sch, &lib());
         let sda = c.net_named("SDA").expect("SDA net");

@@ -42,13 +42,22 @@ impl Component {
     }
 
     /// World positions of each pin's connection point.
-    pub fn pin_positions<'a>(&'a self, sym: &'a Symbol) -> impl Iterator<Item = (&'a str, Point)> + 'a {
+    pub fn pin_positions<'a>(
+        &'a self,
+        sym: &'a Symbol,
+    ) -> impl Iterator<Item = (&'a str, Point)> + 'a {
         let tf = self.transform();
-        sym.pins.iter().map(move |p| (p.number.as_str(), tf.apply(p.pos)))
+        sym.pins
+            .iter()
+            .map(move |p| (p.number.as_str(), tf.apply(p.pos)))
     }
 
     pub fn bbox(&self, lib: &Library) -> Rect {
-        let Some(sym) = lib.devices.get(&self.device).and_then(|d| lib.symbols.get(&d.symbol)) else {
+        let Some(sym) = lib
+            .devices
+            .get(&self.device)
+            .and_then(|d| lib.symbols.get(&d.symbol))
+        else {
             return Rect::around(self.pos, mil(50.0), mil(50.0));
         };
         let b = sym.bbox();
@@ -59,7 +68,11 @@ impl Component {
     pub fn attr<'a>(&'a self, key: &str, lib: &'a Library) -> Option<&'a str> {
         self.attributes
             .get(key)
-            .or_else(|| lib.devices.get(&self.device).and_then(|d| d.attributes.get(key)))
+            .or_else(|| {
+                lib.devices
+                    .get(&self.device)
+                    .and_then(|d| d.attributes.get(key))
+            })
             .map(|s| s.as_str())
     }
 }
@@ -132,7 +145,12 @@ pub enum PaperSize {
 }
 
 impl PaperSize {
-    pub const ALL: [PaperSize; 4] = [PaperSize::A4, PaperSize::A3, PaperSize::A2, PaperSize::Letter];
+    pub const ALL: [PaperSize; 4] = [
+        PaperSize::A4,
+        PaperSize::A3,
+        PaperSize::A2,
+        PaperSize::Letter,
+    ];
 
     /// Landscape size in nm.
     pub fn size(self) -> Point {
@@ -211,13 +229,18 @@ impl Sheet {
     }
 
     pub fn max_id(&self) -> Id {
-        let ids = self.components.iter().map(|o| o.id)
+        let ids = self
+            .components
+            .iter()
+            .map(|o| o.id)
             .chain(self.wires.iter().map(|o| o.id))
             .chain(self.labels.iter().map(|o| o.id))
             .chain(self.ports.iter().map(|o| o.id))
             .chain(self.no_connects.iter().map(|o| o.id))
             .chain(self.annotations.iter().map(|o| o.id));
-        ids.chain(std::iter::once(self.id)).max().unwrap_or_default()
+        ids.chain(std::iter::once(self.id))
+            .max()
+            .unwrap_or_default()
     }
 
     /// Clean up wires: drop zero-length segments and merge collinear runs.
@@ -227,8 +250,10 @@ impl Sheet {
             let mut i = 1;
             while i + 1 < w.points.len() {
                 let (a, b, c) = (w.points[i - 1], w.points[i], w.points[i + 1]);
-                let cross = (b.x - a.x) as i128 * (c.y - b.y) as i128 - (b.y - a.y) as i128 * (c.x - b.x) as i128;
-                let dot = (b.x - a.x) as i128 * (c.x - b.x) as i128 + (b.y - a.y) as i128 * (c.y - b.y) as i128;
+                let cross = (b.x - a.x) as i128 * (c.y - b.y) as i128
+                    - (b.y - a.y) as i128 * (c.x - b.x) as i128;
+                let dot = (b.x - a.x) as i128 * (c.x - b.x) as i128
+                    + (b.y - a.y) as i128 * (c.y - b.y) as i128;
                 if cross == 0 && dot >= 0 {
                     w.points.remove(i);
                 } else {
@@ -247,7 +272,10 @@ pub struct Schematic {
 
 impl Schematic {
     pub fn components(&self) -> impl Iterator<Item = (usize, &Component)> {
-        self.sheets.iter().enumerate().flat_map(|(i, s)| s.components.iter().map(move |c| (i, c)))
+        self.sheets
+            .iter()
+            .enumerate()
+            .flat_map(|(i, s)| s.components.iter().map(move |c| (i, c)))
     }
 
     pub fn find_component(&self, id: Id) -> Option<&Component> {
@@ -268,18 +296,35 @@ mod tests {
         let mut s = Sheet::default();
         s.wires.push(Wire {
             id: Id(1),
-            points: vec![Point::new(0, 0), Point::new(5, 0), Point::new(5, 0), Point::new(10, 0), Point::new(10, 5)],
+            points: vec![
+                Point::new(0, 0),
+                Point::new(5, 0),
+                Point::new(5, 0),
+                Point::new(10, 0),
+                Point::new(10, 5),
+            ],
         });
-        s.wires.push(Wire { id: Id(2), points: vec![Point::new(1, 1), Point::new(1, 1)] });
+        s.wires.push(Wire {
+            id: Id(2),
+            points: vec![Point::new(1, 1), Point::new(1, 1)],
+        });
         s.tidy_wires();
         assert_eq!(s.wires.len(), 1);
-        assert_eq!(s.wires[0].points, vec![Point::new(0, 0), Point::new(10, 0), Point::new(10, 5)]);
+        assert_eq!(
+            s.wires[0].points,
+            vec![Point::new(0, 0), Point::new(10, 0), Point::new(10, 5)]
+        );
     }
 
     #[test]
     fn remove_by_id() {
         let mut s = Sheet::default();
-        s.labels.push(NetLabel { id: Id(4), name: "SDA".into(), pos: Point::ZERO, rotation: 0.0 });
+        s.labels.push(NetLabel {
+            id: Id(4),
+            name: "SDA".into(),
+            pos: Point::ZERO,
+            rotation: 0.0,
+        });
         assert!(s.remove(Id(4)));
         assert!(!s.remove(Id(4)));
     }

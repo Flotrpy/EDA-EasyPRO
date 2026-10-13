@@ -5,7 +5,7 @@
 
 use crate::geom::Point;
 use crate::layer::Layer;
-use crate::library::{FpGraphic, Footprint, Pad, PadKind, PadShape, Pin, PinKind, Symbol};
+use crate::library::{Footprint, FpGraphic, Pad, PadKind, PadShape, Pin, PinKind, Symbol};
 use crate::sexpr::{parse, Sexp};
 use crate::shape::Shape;
 use crate::units::mm;
@@ -44,7 +44,12 @@ pub fn import_footprint(text: &str) -> Result<Footprint, String> {
         return Err("not a KiCad footprint (expected (footprint ...))".into());
     }
     let name = root.arg(0).unwrap_or("Imported").to_string();
-    let mut f = Footprint { id: format!("fp:{name}"), name, pads: vec![], graphics: vec![] };
+    let mut f = Footprint {
+        id: format!("fp:{name}"),
+        name,
+        pads: vec![],
+        graphics: vec![],
+    };
     for item in root.items() {
         match item.head() {
             Some("pad") => {
@@ -53,7 +58,10 @@ pub fn import_footprint(text: &str) -> Result<Footprint, String> {
                 }
             }
             Some(h @ ("fp_line" | "fp_rect" | "fp_circle" | "fp_arc" | "fp_poly" | "fp_text")) => {
-                let Some(layer) = item.get("layer").and_then(|l| l.arg(0)).and_then(fp_layer) else { continue };
+                let Some(layer) = item.get("layer").and_then(|l| l.arg(0)).and_then(fp_layer)
+                else {
+                    continue;
+                };
                 if let Some(shape) = graphic(h, item) {
                     f.graphics.push(FpGraphic { layer, shape });
                 }
@@ -76,14 +84,27 @@ fn pad(s: &Sexp) -> Option<Pad> {
     let rotation = at.num(2).unwrap_or(0.0);
     let size = s.get("size")?;
     let size = Point::new(mm(size.num(0)?), mm(size.num(1)?));
-    let drill = s.get("drill").and_then(|d| d.items().iter().skip(1).find_map(|a| a.atom()?.parse::<f64>().ok())).map(mm);
+    let drill = s
+        .get("drill")
+        .and_then(|d| {
+            d.items()
+                .iter()
+                .skip(1)
+                .find_map(|a| a.atom()?.parse::<f64>().ok())
+        })
+        .map(mm);
     let shape = match shape_s {
         "rect" => PadShape::Rect,
         "circle" => PadShape::Round,
         "oval" => PadShape::Oval,
         "roundrect" => {
-            let r = s.get("roundrect_rratio").and_then(|r| r.num(0)).unwrap_or(0.25);
-            PadShape::RoundRect { ratio_pct: (r * 100.0).round().clamp(0.0, 50.0) as u8 }
+            let r = s
+                .get("roundrect_rratio")
+                .and_then(|r| r.num(0))
+                .unwrap_or(0.25);
+            PadShape::RoundRect {
+                ratio_pct: (r * 100.0).round().clamp(0.0, 50.0) as u8,
+            }
         }
         _ => PadShape::Rect,
     };
@@ -91,28 +112,60 @@ fn pad(s: &Sexp) -> Option<Pad> {
         // Pads that only list mask/paste layers are fiducials or aperture
         // helpers; still import them as SMD so nothing is silently lost.
         "smd" => PadKind::Smd,
-        "thru_hole" => PadKind::Tht { drill: drill.unwrap_or(mm(0.8)) },
-        "np_thru_hole" => PadKind::Npth { drill: drill.unwrap_or(size.x) },
+        "thru_hole" => PadKind::Tht {
+            drill: drill.unwrap_or(mm(0.8)),
+        },
+        "np_thru_hole" => PadKind::Npth {
+            drill: drill.unwrap_or(size.x),
+        },
         "connect" => PadKind::Smd,
         _ => return None,
     };
-    Some(Pad { number, pos, size, shape, kind, rotation })
+    Some(Pad {
+        number,
+        pos,
+        size,
+        shape,
+        kind,
+        rotation,
+    })
 }
 
 fn graphic(head: &str, s: &Sexp) -> Option<Shape> {
     let w = width(s);
-    let fill = s.get("fill").and_then(|f| f.arg(0)).is_some_and(|v| v == "solid" || v == "yes");
+    let fill = s
+        .get("fill")
+        .and_then(|f| f.arg(0))
+        .is_some_and(|v| v == "solid" || v == "yes");
     Some(match head {
-        "fp_line" => Shape::Line { a: pt(s.get("start")?, true)?, b: pt(s.get("end")?, true)?, width: w },
-        "fp_rect" => Shape::Rect { a: pt(s.get("start")?, true)?, b: pt(s.get("end")?, true)?, width: w, fill },
+        "fp_line" => Shape::Line {
+            a: pt(s.get("start")?, true)?,
+            b: pt(s.get("end")?, true)?,
+            width: w,
+        },
+        "fp_rect" => Shape::Rect {
+            a: pt(s.get("start")?, true)?,
+            b: pt(s.get("end")?, true)?,
+            width: w,
+            fill,
+        },
         "fp_circle" => {
             let c = pt(s.get("center")?, true)?;
             let e = pt(s.get("end")?, true)?;
-            Shape::Circle { center: c, radius: c.dist(e).round() as i64, width: w, fill }
+            Shape::Circle {
+                center: c,
+                radius: c.dist(e).round() as i64,
+                width: w,
+                fill,
+            }
         }
         "fp_arc" => arc_from(s, true, w)?,
         "fp_poly" => Shape::Polygon {
-            points: s.get("pts")?.all("xy").filter_map(|p| pt(p, true)).collect(),
+            points: s
+                .get("pts")?
+                .all("xy")
+                .filter_map(|p| pt(p, true))
+                .collect(),
             width: w,
             fill: true,
         },
@@ -123,8 +176,19 @@ fn graphic(head: &str, s: &Sexp) -> Option<Shape> {
                 _ => s.arg(1)?.to_string(),
             };
             let at = s.get("at")?;
-            let size = s.get("effects").and_then(|e| e.get("font")).and_then(|f| f.get("size")).and_then(|z| z.num(1)).unwrap_or(1.0);
-            Shape::Text { pos: pt(at, true)?, text, size: mm(size), rotation: at.num(2).unwrap_or(0.0), align: crate::shape::Align::Center }
+            let size = s
+                .get("effects")
+                .and_then(|e| e.get("font"))
+                .and_then(|f| f.get("size"))
+                .and_then(|z| z.num(1))
+                .unwrap_or(1.0);
+            Shape::Text {
+                pos: pt(at, true)?,
+                text,
+                size: mm(size),
+                rotation: at.num(2).unwrap_or(0.0),
+                align: crate::shape::Align::Center,
+            }
         }
         _ => return None,
     })
@@ -141,14 +205,30 @@ fn arc_from(s: &Sexp, flip: bool, w: i64) -> Option<Shape> {
         let (sa, ma, ea) = (ang(a), ang(m), ang(b));
         let norm = |x: f64| x.rem_euclid(360.0);
         let ccw_sweep = norm(ea - sa);
-        let sweep = if norm(ma - sa) <= ccw_sweep { ccw_sweep } else { ccw_sweep - 360.0 };
-        Some(Shape::Arc { center: c, radius: r, start: sa, sweep, width: w })
+        let sweep = if norm(ma - sa) <= ccw_sweep {
+            ccw_sweep
+        } else {
+            ccw_sweep - 360.0
+        };
+        Some(Shape::Arc {
+            center: c,
+            radius: r,
+            start: sa,
+            sweep,
+            width: w,
+        })
     } else {
         let c = pt(s.get("start")?, flip)?;
         let e = pt(s.get("end")?, flip)?;
         let angle = s.get("angle")?.num(0)?;
         let start = ((e.y - c.y) as f64).atan2((e.x - c.x) as f64).to_degrees();
-        Some(Shape::Arc { center: c, radius: c.dist(e).round() as i64, start, sweep: if flip { -angle } else { angle }, width: w })
+        Some(Shape::Arc {
+            center: c,
+            radius: c.dist(e).round() as i64,
+            start,
+            sweep: if flip { -angle } else { angle },
+            width: w,
+        })
     }
 }
 
@@ -160,8 +240,14 @@ fn circumcircle(a: Point, b: Point, c: Point) -> Option<(Point, i64)> {
     if d.abs() < 1e-9 {
         return None;
     }
-    let ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
-    let uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
+    let ux = ((ax * ax + ay * ay) * (by - cy)
+        + (bx * bx + by * by) * (cy - ay)
+        + (cx * cx + cy * cy) * (ay - by))
+        / d;
+    let uy = ((ax * ax + ay * ay) * (cx - bx)
+        + (bx * bx + by * by) * (ax - cx)
+        + (cx * cx + cy * cy) * (bx - ax))
+        / d;
     let center = Point::from_f(ux, uy);
     Some((center, center.dist(a).round() as i64))
 }
@@ -188,8 +274,15 @@ pub fn import_symbols(text: &str) -> Result<Vec<Symbol>, String> {
     let mut out = Vec::new();
     for sym in root.all("symbol") {
         let name = sym.arg(0).unwrap_or("Imported").to_string();
-        let hide_names = sym.get("pin_names").is_some_and(|p| p.has_atom("hide") || p.get("hide").is_some());
-        let mut s = Symbol { id: format!("sym:{name}"), name: name.clone(), pins: vec![], graphics: vec![] };
+        let hide_names = sym
+            .get("pin_names")
+            .is_some_and(|p| p.has_atom("hide") || p.get("hide").is_some());
+        let mut s = Symbol {
+            id: format!("sym:{name}"),
+            name: name.clone(),
+            pins: vec![],
+            graphics: vec![],
+        };
         // Units are nested symbols "<name>_<unit>_<style>"; take unit 0/1, style 1.
         let mut bodies: Vec<&Sexp> = vec![sym];
         bodies.extend(sym.all("symbol").filter(|u| {
@@ -201,8 +294,16 @@ pub fn import_symbols(text: &str) -> Result<Vec<Symbol>, String> {
                 match it.head() {
                     Some("pin") => {
                         let at = it.get("at").ok_or("pin without position")?;
-                        let number = it.get("number").and_then(|n| n.arg(0)).unwrap_or("").to_string();
-                        let mut pname = it.get("name").and_then(|n| n.arg(0)).unwrap_or("").to_string();
+                        let number = it
+                            .get("number")
+                            .and_then(|n| n.arg(0))
+                            .unwrap_or("")
+                            .to_string();
+                        let mut pname = it
+                            .get("name")
+                            .and_then(|n| n.arg(0))
+                            .unwrap_or("")
+                            .to_string();
                         if pname == "~" {
                             pname = String::new();
                         }
@@ -211,31 +312,69 @@ pub fn import_symbols(text: &str) -> Result<Vec<Symbol>, String> {
                             name: pname.clone(),
                             pos: pt(at, false).ok_or("bad pin position")?,
                             angle: at.num(2).unwrap_or(0.0),
-                            length: it.get("length").and_then(|l| l.num(0)).map(mm).unwrap_or(mm(2.54)),
+                            length: it
+                                .get("length")
+                                .and_then(|l| l.num(0))
+                                .map(mm)
+                                .unwrap_or(mm(2.54)),
                             kind: pin_kind(it.arg(0).unwrap_or("passive")),
                             hide_name: hide_names || pname.is_empty(),
                         });
                     }
                     Some("rectangle") => {
-                        let fill = it.get("fill").and_then(|f| f.get("type")).and_then(|t| t.arg(0)).is_some_and(|t| t == "outline");
-                        if let (Some(a), Some(b)) = (it.get("start").and_then(|p| pt(p, false)), it.get("end").and_then(|p| pt(p, false))) {
-                            s.graphics.push(Shape::Rect { a, b, width: width(it).max(mm(0.15)), fill });
+                        let fill = it
+                            .get("fill")
+                            .and_then(|f| f.get("type"))
+                            .and_then(|t| t.arg(0))
+                            .is_some_and(|t| t == "outline");
+                        if let (Some(a), Some(b)) = (
+                            it.get("start").and_then(|p| pt(p, false)),
+                            it.get("end").and_then(|p| pt(p, false)),
+                        ) {
+                            s.graphics.push(Shape::Rect {
+                                a,
+                                b,
+                                width: width(it).max(mm(0.15)),
+                                fill,
+                            });
                         }
                     }
                     Some("polyline") => {
-                        let pts: Vec<Point> = it.get("pts").map(|p| p.all("xy").filter_map(|x| pt(x, false)).collect()).unwrap_or_default();
+                        let pts: Vec<Point> = it
+                            .get("pts")
+                            .map(|p| p.all("xy").filter_map(|x| pt(x, false)).collect())
+                            .unwrap_or_default();
                         if pts.len() >= 2 {
-                            let fill = it.get("fill").and_then(|f| f.get("type")).and_then(|t| t.arg(0)).is_some_and(|t| t == "outline");
+                            let fill = it
+                                .get("fill")
+                                .and_then(|f| f.get("type"))
+                                .and_then(|t| t.arg(0))
+                                .is_some_and(|t| t == "outline");
                             if fill && pts.len() >= 3 {
-                                s.graphics.push(Shape::Polygon { points: pts, width: width(it).max(mm(0.15)), fill: true });
+                                s.graphics.push(Shape::Polygon {
+                                    points: pts,
+                                    width: width(it).max(mm(0.15)),
+                                    fill: true,
+                                });
                             } else {
-                                s.graphics.push(Shape::Polyline { points: pts, width: width(it).max(mm(0.15)) });
+                                s.graphics.push(Shape::Polyline {
+                                    points: pts,
+                                    width: width(it).max(mm(0.15)),
+                                });
                             }
                         }
                     }
                     Some("circle") => {
-                        if let (Some(c), Some(r)) = (it.get("center").and_then(|p| pt(p, false)), it.get("radius").and_then(|r| r.num(0))) {
-                            s.graphics.push(Shape::Circle { center: c, radius: mm(r), width: width(it).max(mm(0.15)), fill: false });
+                        if let (Some(c), Some(r)) = (
+                            it.get("center").and_then(|p| pt(p, false)),
+                            it.get("radius").and_then(|r| r.num(0)),
+                        ) {
+                            s.graphics.push(Shape::Circle {
+                                center: c,
+                                radius: mm(r),
+                                width: width(it).max(mm(0.15)),
+                                fill: false,
+                            });
                         }
                     }
                     Some("arc") => {

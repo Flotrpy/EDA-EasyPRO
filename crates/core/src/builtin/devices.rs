@@ -9,7 +9,14 @@ use std::collections::BTreeMap;
 use PinKind::*;
 
 fn model(body: Body, x: f64, y: f64, h: f64, color: u32) -> Option<Model3d> {
-    Some(Model3d { body, size: Point::new(mm(x), mm(y)), height: mm(h), standoff: 0, color, offset: Point::ZERO })
+    Some(Model3d {
+        body,
+        size: Point::new(mm(x), mm(y)),
+        height: mm(h),
+        standoff: 0,
+        color,
+        offset: Point::ZERO,
+    })
 }
 
 struct D {
@@ -38,8 +45,16 @@ impl From<D> for Device {
             footprint: (!d.footprint.is_empty()).then(|| d.footprint.into()),
             model: d.model,
             value: d.value.into(),
-            attributes: d.attrs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<BTreeMap<_, _>>(),
-            pin_map: d.pin_map.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            attributes: d
+                .attrs
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect::<BTreeMap<_, _>>(),
+            pin_map: d
+                .pin_map
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
         }
     }
 }
@@ -91,7 +106,12 @@ fn passives() -> Vec<Device> {
     v
 }
 
-fn ic(id: &str, name: &str, left: &[(&str, &str, PinKind)], right: &[(&str, &str, PinKind)]) -> Symbol {
+fn ic(
+    id: &str,
+    name: &str,
+    left: &[(&str, &str, PinKind)],
+    right: &[(&str, &str, PinKind)],
+) -> Symbol {
     sym::ic_box(id, name, left, right)
 }
 
@@ -119,17 +139,47 @@ pub fn symbols() -> Vec<Symbol> {
         ic(
             "sym:ne555",
             "NE555",
-            &[("1", "GND", PowerIn), ("2", "TRIG", Input), ("3", "OUT", Output), ("4", "RESET", Input)],
-            &[("8", "VCC", PowerIn), ("7", "DISCH", OpenCollector), ("6", "THRES", Input), ("5", "CONT", Input)],
+            &[
+                ("1", "GND", PowerIn),
+                ("2", "TRIG", Input),
+                ("3", "OUT", Output),
+                ("4", "RESET", Input),
+            ],
+            &[
+                ("8", "VCC", PowerIn),
+                ("7", "DISCH", OpenCollector),
+                ("6", "THRES", Input),
+                ("5", "CONT", Input),
+            ],
         ),
         ic(
             "sym:lm358",
             "LM358",
-            &[("1", "OUTA", Output), ("2", "-INA", Input), ("3", "+INA", Input), ("4", "GND", PowerIn)],
-            &[("8", "VCC", PowerIn), ("7", "OUTB", Output), ("6", "-INB", Input), ("5", "+INB", Input)],
+            &[
+                ("1", "OUTA", Output),
+                ("2", "-INA", Input),
+                ("3", "+INA", Input),
+                ("4", "GND", PowerIn),
+            ],
+            &[
+                ("8", "VCC", PowerIn),
+                ("7", "OUTB", Output),
+                ("6", "-INB", Input),
+                ("5", "+INB", Input),
+            ],
         ),
-        ic("sym:ldo", "LDO Regulator", &[("3", "VIN", PowerIn), ("1", "GND", PowerIn)], &[("2", "VOUT", PowerOut)]),
-        ic("sym:7805", "78xx Regulator", &[("1", "VIN", PowerIn), ("2", "GND", PowerIn)], &[("3", "VOUT", PowerOut)]),
+        ic(
+            "sym:ldo",
+            "LDO Regulator",
+            &[("3", "VIN", PowerIn), ("1", "GND", PowerIn)],
+            &[("2", "VOUT", PowerOut)],
+        ),
+        ic(
+            "sym:7805",
+            "78xx Regulator",
+            &[("1", "VIN", PowerIn), ("2", "GND", PowerIn)],
+            &[("3", "VOUT", PowerOut)],
+        ),
         ic(
             "sym:atmega328p-tqfp",
             "ATmega328P (TQFP)",
@@ -336,7 +386,11 @@ pub fn symbols() -> Vec<Symbol> {
         ic(
             "sym:usb-c",
             "USB-C Receptacle",
-            &[("VBUS", "VBUS", PowerOut), ("GND", "GND", PowerIn), ("SHELL", "SHELL", Passive)],
+            &[
+                ("VBUS", "VBUS", PowerOut),
+                ("GND", "GND", PowerIn),
+                ("SHELL", "SHELL", Passive),
+            ],
             &[
                 ("D+", "D+", Bidirectional),
                 ("D-", "D-", Bidirectional),
@@ -350,7 +404,11 @@ pub fn symbols() -> Vec<Symbol> {
         sym::connector("sym:hdr-3", "Header 1x3", &["1", "2", "3"]),
         sym::connector("sym:hdr-4", "Header 1x4", &["1", "2", "3", "4"]),
         sym::connector("sym:hdr-6", "Header 1x6", &["1", "2", "3", "4", "5", "6"]),
-        sym::connector("sym:hdr-8", "Header 1x8", &["1", "2", "3", "4", "5", "6", "7", "8"]),
+        sym::connector(
+            "sym:hdr-8",
+            "Header 1x8",
+            &["1", "2", "3", "4", "5", "6", "7", "8"],
+        ),
     ]
 }
 
@@ -640,7 +698,10 @@ pub fn all() -> Vec<Device> {
             footprint: "fp:LQFP-48",
             value: "STM32F103C8T6",
             model: model(Body::Ic, 7.0, 7.0, 1.4, BLACK),
-            attrs: &[("Manufacturer", "STMicroelectronics"), ("MPN", "STM32F103C8T6")],
+            attrs: &[
+                ("Manufacturer", "STMicroelectronics"),
+                ("MPN", "STM32F103C8T6"),
+            ],
             pin_map: &[],
         },
         D {

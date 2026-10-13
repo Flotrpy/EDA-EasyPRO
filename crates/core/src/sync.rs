@@ -23,13 +23,20 @@ pub fn annotate(board: &mut Board, lib: &Library, reset: bool) -> usize {
     order.sort_by(|a, b| {
         let ca = &board.schematic.sheets[a.0].components[a.1];
         let cb = &board.schematic.sheets[b.0].components[b.1];
-        a.0.cmp(&b.0).then(cb.pos.y.cmp(&ca.pos.y)).then(ca.pos.x.cmp(&cb.pos.x))
+        a.0.cmp(&b.0)
+            .then(cb.pos.y.cmp(&ca.pos.y))
+            .then(ca.pos.x.cmp(&cb.pos.x))
     });
 
     let prefix_of = |device: &str, current: &str| -> String {
-        lib.devices.get(device).map(|d| d.prefix.clone()).unwrap_or_else(|| {
-            current.trim_end_matches(|c: char| c.is_ascii_digit() || c == '?').to_string()
-        })
+        lib.devices
+            .get(device)
+            .map(|d| d.prefix.clone())
+            .unwrap_or_else(|| {
+                current
+                    .trim_end_matches(|c: char| c.is_ascii_digit() || c == '?')
+                    .to_string()
+            })
     };
 
     let mut used: HashSet<String> = HashSet::new();
@@ -37,7 +44,10 @@ pub fn annotate(board: &mut Board, lib: &Library, reset: bool) -> usize {
     let mut needs = Vec::new();
     for &(si, ci) in &order {
         let c = &board.schematic.sheets[si].components[ci];
-        let fresh = reset || c.designator.ends_with('?') || c.designator.is_empty() || !seen.insert(c.designator.clone());
+        let fresh = reset
+            || c.designator.ends_with('?')
+            || c.designator.is_empty()
+            || !seen.insert(c.designator.clone());
         if fresh {
             needs.push((si, ci));
         } else {
@@ -73,7 +83,12 @@ impl SyncReport {
     }
 
     pub fn summary(&self) -> String {
-        format!("{} added, {} updated, {} removed", self.added.len(), self.updated.len(), self.removed.len())
+        format!(
+            "{} added, {} updated, {} removed",
+            self.added.len(),
+            self.updated.len(),
+            self.removed.len()
+        )
     }
 }
 
@@ -86,25 +101,39 @@ pub fn update_pcb(board: &mut Board, lib: &Library, ids: &mut IdGen) -> SyncRepo
     let pcb: &mut Pcb = &mut board.pcb;
 
     // Staging area for new parts: to the right of the board.
-    let area = pcb.outline().map(crate::geom::Rect::from_points).unwrap_or(crate::geom::Rect::new(Point::ZERO, Point::ZERO));
+    let area = pcb
+        .outline()
+        .map(crate::geom::Rect::from_points)
+        .unwrap_or(crate::geom::Rect::new(Point::ZERO, Point::ZERO));
     let mut cursor = Point::new(area.max.x + mm(10.0), area.max.y);
     let mut row_height = 0;
     let row_limit = area.max.x + mm(80.0);
 
     let mut alive = HashSet::new();
     let mut seen_designators: BTreeMap<String, usize> = BTreeMap::new();
-    let mut parts: Vec<_> = board.schematic.components().map(|(_, c)| c.clone()).collect();
+    let mut parts: Vec<_> = board
+        .schematic
+        .components()
+        .map(|(_, c)| c.clone())
+        .collect();
     parts.sort_by(|a, b| natural_cmp(&a.designator, &b.designator));
 
     for c in &parts {
         *seen_designators.entry(c.designator.clone()).or_default() += 1;
         let Some(dev) = lib.devices.get(&c.device) else {
-            report.warnings.push(format!("{}: device {} not found in project library", c.designator, c.device));
+            report.warnings.push(format!(
+                "{}: device {} not found in project library",
+                c.designator, c.device
+            ));
             continue;
         };
-        let Some(fp_id) = dev.footprint.clone() else { continue };
+        let Some(fp_id) = dev.footprint.clone() else {
+            continue;
+        };
         let Some(fp) = lib.footprints.get(&fp_id) else {
-            report.warnings.push(format!("{}: footprint {fp_id} not found", c.designator));
+            report
+                .warnings
+                .push(format!("{}: footprint {fp_id} not found", c.designator));
             continue;
         };
         alive.insert(c.id);
@@ -121,7 +150,10 @@ pub fn update_pcb(board: &mut Board, lib: &Library, ids: &mut IdGen) -> SyncRepo
         if let Some(existing) = pcb.components.iter_mut().find(|p| p.link == Some(c.id)) {
             let mut changes = Vec::new();
             if existing.designator != c.designator {
-                changes.push(format!("designator {} -> {}", existing.designator, c.designator));
+                changes.push(format!(
+                    "designator {} -> {}",
+                    existing.designator, c.designator
+                ));
                 existing.designator = c.designator.clone();
             }
             if existing.value != c.value {
@@ -138,7 +170,9 @@ pub fn update_pcb(board: &mut Board, lib: &Library, ids: &mut IdGen) -> SyncRepo
                 existing.pad_nets = pad_nets;
             }
             if !changes.is_empty() {
-                report.updated.push(format!("{}: {}", c.designator, changes.join(", ")));
+                report
+                    .updated
+                    .push(format!("{}: {}", c.designator, changes.join(", ")));
             }
         } else {
             let b = fp.bbox();
@@ -147,7 +181,10 @@ pub fn update_pcb(board: &mut Board, lib: &Library, ids: &mut IdGen) -> SyncRepo
                 cursor = Point::new(area.max.x + mm(10.0), cursor.y - row_height - mm(3.0));
                 row_height = 0;
             }
-            let pos = Point::new(cursor.x + w / 2 - b.center().x, cursor.y - h / 2 - b.center().y);
+            let pos = Point::new(
+                cursor.x + w / 2 - b.center().x,
+                cursor.y - h / 2 - b.center().y,
+            );
             cursor.x += w + mm(3.0);
             row_height = row_height.max(h);
             pcb.components.push(PcbComponent {
@@ -179,15 +216,23 @@ pub fn update_pcb(board: &mut Board, lib: &Library, ids: &mut IdGen) -> SyncRepo
 
     for (des, n) in seen_designators {
         if n > 1 {
-            report.warnings.push(format!("designator {des} is used {n} times; run Annotate"));
+            report
+                .warnings
+                .push(format!("designator {des} is used {n} times; run Annotate"));
         } else if des.ends_with('?') {
             report.warnings.push(format!("{des} is not annotated"));
         }
     }
     let nets: HashSet<String> = conn.nets.iter().map(|n| n.name.clone()).collect();
-    let orphan_tracks = pcb.tracks.iter().filter(|t| !t.net.is_empty() && !nets.contains(&t.net)).count();
+    let orphan_tracks = pcb
+        .tracks
+        .iter()
+        .filter(|t| !t.net.is_empty() && !nets.contains(&t.net))
+        .count();
     if orphan_tracks > 0 {
-        report.warnings.push(format!("{orphan_tracks} track(s) belong to nets that no longer exist"));
+        report.warnings.push(format!(
+            "{orphan_tracks} track(s) belong to nets that no longer exist"
+        ));
     }
     report
 }
@@ -224,7 +269,13 @@ mod tests {
         let s = &mut p.boards[0].schematic.sheets[0];
         s.components.push(part(10, "dev:R-0603", "R?", 0.0, 0.0));
         s.components.push(part(11, "dev:R-0603", "R?", 1000.0, 0.0));
-        s.wires.push(Wire { id: Id(12), points: vec![Point::new(crate::units::mil(200.0), 0), Point::new(crate::units::mil(800.0), 0)] });
+        s.wires.push(Wire {
+            id: Id(12),
+            points: vec![
+                Point::new(crate::units::mil(200.0), 0),
+                Point::new(crate::units::mil(800.0), 0),
+            ],
+        });
         p
     }
 
@@ -233,7 +284,11 @@ mod tests {
         let mut p = project();
         let lib = p.library.clone();
         assert_eq!(annotate(&mut p.boards[0], &lib, false), 2);
-        let des: Vec<_> = p.boards[0].schematic.sheets[0].components.iter().map(|c| c.designator.clone()).collect();
+        let des: Vec<_> = p.boards[0].schematic.sheets[0]
+            .components
+            .iter()
+            .map(|c| c.designator.clone())
+            .collect();
         assert_eq!(des, vec!["R1", "R2"]);
         assert_eq!(annotate(&mut p.boards[0], &lib, false), 0);
     }
@@ -246,7 +301,11 @@ mod tests {
         let r = update_pcb(&mut p.boards[0], &lib, &mut p.ids);
         assert_eq!(r.added, vec!["R1", "R2"]);
         let pcb = &p.boards[0].pcb;
-        let r1 = pcb.components.iter().find(|c| c.designator == "R1").unwrap();
+        let r1 = pcb
+            .components
+            .iter()
+            .find(|c| c.designator == "R1")
+            .unwrap();
         assert_eq!(r1.net_of("2"), "Net-(R1-2)");
         assert_eq!(r1.net_of("1"), "");
 

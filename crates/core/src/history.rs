@@ -18,7 +18,11 @@ impl<T: Clone> Default for History<T> {
 
 impl<T: Clone> History<T> {
     pub fn new(limit: usize) -> Self {
-        History { undo: Vec::new(), redo: Vec::new(), limit: limit.max(1) }
+        History {
+            undo: Vec::new(),
+            redo: Vec::new(),
+            limit: limit.max(1),
+        }
     }
 
     /// Record `before` (the state prior to an edit described by `label`).

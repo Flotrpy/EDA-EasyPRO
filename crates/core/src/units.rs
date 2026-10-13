@@ -94,7 +94,11 @@ pub fn parse_length(input: &str, default: Unit) -> Option<i64> {
 fn trim_zeros(s: &str) -> String {
     if s.contains('.') {
         let t = s.trim_end_matches('0').trim_end_matches('.');
-        if t == "-0" { "0".into() } else { t.into() }
+        if t == "-0" {
+            "0".into()
+        } else {
+            t.into()
+        }
     } else {
         s.into()
     }

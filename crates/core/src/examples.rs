@@ -17,19 +17,21 @@ impl Builder {
     fn part(&mut self, device: &str, value: &str, x: f64, y: f64, rotation: f64) -> crate::id::Id {
         self.p.library.import_device(builtin::library(), device);
         let id = self.p.next_id();
-        self.p.boards[0].schematic.sheets[0].components.push(Component {
-            id,
-            device: device.into(),
-            designator: format!("{}?", builtin::library().devices[device].prefix),
-            value: value.into(),
-            pos: Point::new(mil(x), mil(y)),
-            rotation,
-            mirror: false,
-            attributes: Default::default(),
-            exclude_from_bom: false,
-            designator_offset: None,
-            value_offset: None,
-        });
+        self.p.boards[0].schematic.sheets[0]
+            .components
+            .push(Component {
+                id,
+                device: device.into(),
+                designator: format!("{}?", builtin::library().devices[device].prefix),
+                value: value.into(),
+                pos: Point::new(mil(x), mil(y)),
+                rotation,
+                mirror: false,
+                attributes: Default::default(),
+                exclude_from_bom: false,
+                designator_offset: None,
+                value_offset: None,
+            });
         id
     }
 
@@ -48,18 +50,40 @@ impl Builder {
         let wid = self.p.next_id();
         let lid = self.p.next_id();
         let sheet = &mut self.p.boards[0].schematic.sheets[0];
-        sheet.wires.push(Wire { id: wid, points: vec![at, end] });
+        sheet.wires.push(Wire {
+            id: wid,
+            points: vec![at, end],
+        });
         match net {
-            "VCC" => sheet.ports.push(NetPort { id: lid, name: net.into(), pos: end, style: PortStyle::Power, rotation: 0.0 }),
-            "GND" => sheet.ports.push(NetPort { id: lid, name: net.into(), pos: end, style: PortStyle::Ground, rotation: 0.0 }),
-            _ => sheet.labels.push(NetLabel { id: lid, name: net.into(), pos: end, rotation: 0.0 }),
+            "VCC" => sheet.ports.push(NetPort {
+                id: lid,
+                name: net.into(),
+                pos: end,
+                style: PortStyle::Power,
+                rotation: 0.0,
+            }),
+            "GND" => sheet.ports.push(NetPort {
+                id: lid,
+                name: net.into(),
+                pos: end,
+                style: PortStyle::Ground,
+                rotation: 0.0,
+            }),
+            _ => sheet.labels.push(NetLabel {
+                id: lid,
+                name: net.into(),
+                pos: end,
+                rotation: 0.0,
+            }),
         }
     }
 }
 
 /// Classic NE555 astable LED blinker on a 50 x 40 mm two-layer board.
 pub fn blinker() -> Project {
-    let mut b = Builder { p: Project::new("555 LED Blinker") };
+    let mut b = Builder {
+        p: Project::new("555 LED Blinker"),
+    };
     b.p.description = "NE555 astable oscillator driving an LED at about 1.4 Hz.".into();
     let u1 = b.part("dev:NE555-SOIC", "NE555", 5000.0, 6000.0, 0.0);
     let r1 = b.part("dev:R-0603", "10k", 7000.0, 6600.0, 0.0);
@@ -71,7 +95,16 @@ pub fn blinker() -> Project {
     let j1 = b.part("dev:HDR-1x2", "5V IN", 3000.0, 4600.0, 0.0);
     let c3 = b.part("dev:C-0603", "100nF", 7000.0, 4600.0, 0.0);
 
-    for (pin, net) in [("1", "GND"), ("2", "THR"), ("3", "OUT"), ("4", "VCC"), ("5", "CV"), ("6", "THR"), ("7", "DIS"), ("8", "VCC")] {
+    for (pin, net) in [
+        ("1", "GND"),
+        ("2", "THR"),
+        ("3", "OUT"),
+        ("4", "VCC"),
+        ("5", "CV"),
+        ("6", "THR"),
+        ("7", "DIS"),
+        ("8", "VCC"),
+    ] {
         b.tie(u1, pin, net);
     }
     b.tie(r1, "1", "VCC");
@@ -120,7 +153,9 @@ pub fn blinker() -> Project {
         id: pour_id,
         layer: Layer::BottomCopper,
         net: "GND".into(),
-        outline: crate::geom::Rect::new(Point::ZERO, Point::new(mm(50.0), mm(40.0))).corners().to_vec(),
+        outline: crate::geom::Rect::new(Point::ZERO, Point::new(mm(50.0), mm(40.0)))
+            .corners()
+            .to_vec(),
         clearance: None,
         remove_islands: true,
         filled: vec![],
@@ -143,7 +178,10 @@ mod tests {
         let p = blinker();
         let b = &p.boards[0];
         let erc = crate::erc::run(&b.schematic, &p.library);
-        assert!(erc.iter().all(|i| i.severity != Severity::Error), "{erc:#?}");
+        assert!(
+            erc.iter().all(|i| i.severity != Severity::Error),
+            "{erc:#?}"
+        );
         assert_eq!(b.pcb.components.len(), 9);
         let nets = b.pcb.nets();
         for n in ["VCC", "GND", "THR", "DIS", "OUT", "CV", "LED_A"] {
@@ -151,7 +189,11 @@ mod tests {
         }
         assert!(!b.pcb.pours[0].filled.is_empty());
         let drc = crate::drc::run(&b.pcb, &p.library, crate::units::Unit::Mm);
-        assert!(!drc.iter().any(|i| i.message.starts_with("Short") || i.message.contains("outside")), "{drc:#?}");
+        assert!(
+            !drc.iter()
+                .any(|i| i.message.starts_with("Short") || i.message.contains("outside")),
+            "{drc:#?}"
+        );
         // Round trip through the file format.
         assert_eq!(crate::project::Project::from_json(&p.to_json()).unwrap(), p);
     }

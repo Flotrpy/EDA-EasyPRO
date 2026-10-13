@@ -18,7 +18,10 @@ fn ids(it: &CopperItem) -> Option<Id> {
 fn describe(it: &CopperItem, pcb: &Pcb) -> String {
     match &it.what {
         CopperRef::Pad { comp, pad } => {
-            let d = pcb.component(*comp).map(|c| c.designator.as_str()).unwrap_or("?");
+            let d = pcb
+                .component(*comp)
+                .map(|c| c.designator.as_str())
+                .unwrap_or("?");
             format!("pad {d}.{pad}")
         }
         CopperRef::Track(_) => "track".into(),
@@ -28,7 +31,11 @@ fn describe(it: &CopperItem, pcb: &Pcb) -> String {
 }
 
 fn net_label(n: &str) -> &str {
-    if n.is_empty() { "<no net>" } else { n }
+    if n.is_empty() {
+        "<no net>"
+    } else {
+        n
+    }
 }
 
 fn midpoint(a: &Hull, b: &Hull) -> Point {
@@ -41,7 +48,13 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
     let r = &pcb.rules;
     let items = pcb.copper_items(lib);
     let tree = index(&items);
-    let max_clear = r.net_classes.iter().map(|c| c.clearance).chain([r.clearance]).max().unwrap_or(0);
+    let max_clear = r
+        .net_classes
+        .iter()
+        .map(|c| c.clearance)
+        .chain([r.clearance])
+        .max()
+        .unwrap_or(0);
     let mut out = Vec::new();
     let fmt = |v: i64| format!("{} {}", unit.format(v), unit.label());
 
@@ -52,7 +65,9 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
         if same_net {
             continue;
         }
-        if let (CopperRef::Pad { comp: ca, .. }, CopperRef::Pad { comp: cb, .. }) = (&a.what, &b.what) {
+        if let (CopperRef::Pad { comp: ca, .. }, CopperRef::Pad { comp: cb, .. }) =
+            (&a.what, &b.what)
+        {
             if ca == cb {
                 continue;
             }
@@ -72,12 +87,26 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
             }
             Issue::new(
                 Severity::Error,
-                format!("Short: {} ({}) touches {} ({})", describe(a, pcb), net_label(&a.net), describe(b, pcb), net_label(&b.net)),
+                format!(
+                    "Short: {} ({}) touches {} ({})",
+                    describe(a, pcb),
+                    net_label(&a.net),
+                    describe(b, pcb),
+                    net_label(&b.net)
+                ),
             )
         } else if (d as i64) < need {
             Issue::new(
                 Severity::Error,
-                format!("Clearance {} < {}: {} ({}) and {} ({})", fmt(d as i64), fmt(need), describe(a, pcb), net_label(&a.net), describe(b, pcb), net_label(&b.net)),
+                format!(
+                    "Clearance {} < {}: {} ({}) and {} ({})",
+                    fmt(d as i64),
+                    fmt(need),
+                    describe(a, pcb),
+                    net_label(&a.net),
+                    describe(b, pcb),
+                    net_label(&b.net)
+                ),
             )
         } else {
             continue;
@@ -96,9 +125,16 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
     for t in &pcb.tracks {
         if t.width < r.min_track_width {
             out.push(
-                Issue::new(Severity::Error, format!("Track width {} below minimum {}", fmt(t.width), fmt(r.min_track_width)))
-                    .at(Point::new((t.a.x + t.b.x) / 2, (t.a.y + t.b.y) / 2))
-                    .with(t.id),
+                Issue::new(
+                    Severity::Error,
+                    format!(
+                        "Track width {} below minimum {}",
+                        fmt(t.width),
+                        fmt(r.min_track_width)
+                    ),
+                )
+                .at(Point::new((t.a.x + t.b.x) / 2, (t.a.y + t.b.y) / 2))
+                .with(t.id),
             );
         }
     }
@@ -107,11 +143,33 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
     let mut holes: Vec<(Point, i64, Option<Id>)> = Vec::new();
     for v in &pcb.vias {
         if v.drill < r.min_drill {
-            out.push(Issue::new(Severity::Error, format!("Via drill {} below minimum {}", fmt(v.drill), fmt(r.min_drill))).at(v.pos).with(v.id));
+            out.push(
+                Issue::new(
+                    Severity::Error,
+                    format!(
+                        "Via drill {} below minimum {}",
+                        fmt(v.drill),
+                        fmt(r.min_drill)
+                    ),
+                )
+                .at(v.pos)
+                .with(v.id),
+            );
         }
         let ring = (v.diameter - v.drill) / 2;
         if ring < r.min_annular_ring {
-            out.push(Issue::new(Severity::Error, format!("Via annular ring {} below minimum {}", fmt(ring), fmt(r.min_annular_ring))).at(v.pos).with(v.id));
+            out.push(
+                Issue::new(
+                    Severity::Error,
+                    format!(
+                        "Via annular ring {} below minimum {}",
+                        fmt(ring),
+                        fmt(r.min_annular_ring)
+                    ),
+                )
+                .at(v.pos)
+                .with(v.id),
+            );
         }
         holes.push((v.pos, v.drill, Some(v.id)));
     }
@@ -119,12 +177,38 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
         if let PadKind::Tht { drill } | PadKind::Npth { drill } = pad.kind {
             let pos = c.transform().apply(pad.pos);
             if drill < r.min_drill {
-                out.push(Issue::new(Severity::Error, format!("Pad {}.{} drill {} below minimum {}", c.designator, pad.number, fmt(drill), fmt(r.min_drill))).at(pos).with(c.id));
+                out.push(
+                    Issue::new(
+                        Severity::Error,
+                        format!(
+                            "Pad {}.{} drill {} below minimum {}",
+                            c.designator,
+                            pad.number,
+                            fmt(drill),
+                            fmt(r.min_drill)
+                        ),
+                    )
+                    .at(pos)
+                    .with(c.id),
+                );
             }
             if matches!(pad.kind, PadKind::Tht { .. }) {
                 let ring = (pad.size.x.min(pad.size.y) - drill) / 2;
                 if ring < r.min_annular_ring {
-                    out.push(Issue::new(Severity::Warning, format!("Pad {}.{} annular ring {} below {}", c.designator, pad.number, fmt(ring), fmt(r.min_annular_ring))).at(pos).with(c.id));
+                    out.push(
+                        Issue::new(
+                            Severity::Warning,
+                            format!(
+                                "Pad {}.{} annular ring {} below {}",
+                                c.designator,
+                                pad.number,
+                                fmt(ring),
+                                fmt(r.min_annular_ring)
+                            ),
+                        )
+                        .at(pos)
+                        .with(c.id),
+                    );
                 }
             }
             holes.push((pos, drill, Some(c.id)));
@@ -137,7 +221,11 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
             let (pb, db, _) = holes[j];
             let gap = pa.dist(pb) - (da + db) as f64 / 2.0;
             if gap < min_hole_gap as f64 && pa != pb {
-                let mut is = Issue::new(Severity::Error, format!("Holes too close: {} gap", fmt(gap.max(0.0) as i64))).at(pa);
+                let mut is = Issue::new(
+                    Severity::Error,
+                    format!("Holes too close: {} gap", fmt(gap.max(0.0) as i64)),
+                )
+                .at(pa);
                 if let Some(id) = ia {
                     is = is.with(id);
                 }
@@ -148,25 +236,50 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
 
     // Board edge.
     match pcb.outline() {
-        None => out.push(Issue::new(Severity::Error, "Board outline is missing or not closed")),
+        None => out.push(Issue::new(
+            Severity::Error,
+            "Board outline is missing or not closed",
+        )),
         Some(outline) => {
             let n = outline.len();
-            let edges: Vec<Hull> = (0..n).map(|i| Hull::capsule(outline[i], outline[(i + 1) % n], 0)).collect();
+            let edges: Vec<Hull> = (0..n)
+                .map(|i| Hull::capsule(outline[i], outline[(i + 1) % n], 0))
+                .collect();
             for it in &items {
                 if matches!(it.what, CopperRef::Pour(..)) {
                     continue;
                 }
-                let inside = it.hull.points.iter().all(|p| point_in_polygon(*p, &outline));
-                let d = edges.iter().map(|e| e.distance(&it.hull)).fold(f64::INFINITY, f64::min);
+                let inside = it
+                    .hull
+                    .points
+                    .iter()
+                    .all(|p| point_in_polygon(*p, &outline));
+                let d = edges
+                    .iter()
+                    .map(|e| e.distance(&it.hull))
+                    .fold(f64::INFINITY, f64::min);
                 let pos = Rect::from_points(it.hull.points.iter().copied()).center();
                 if !inside {
-                    let mut is = Issue::new(Severity::Error, format!("{} is outside the board", describe(it, pcb))).at(pos);
+                    let mut is = Issue::new(
+                        Severity::Error,
+                        format!("{} is outside the board", describe(it, pcb)),
+                    )
+                    .at(pos);
                     if let Some(id) = ids(it) {
                         is = is.with(id);
                     }
                     out.push(is);
                 } else if (d as i64) < r.edge_clearance {
-                    let mut is = Issue::new(Severity::Error, format!("{} is {} from the board edge (min {})", describe(it, pcb), fmt(d as i64), fmt(r.edge_clearance))).at(pos);
+                    let mut is = Issue::new(
+                        Severity::Error,
+                        format!(
+                            "{} is {} from the board edge (min {})",
+                            describe(it, pcb),
+                            fmt(d as i64),
+                            fmt(r.edge_clearance)
+                        ),
+                    )
+                    .at(pos);
                     if let Some(id) = ids(it) {
                         is = is.with(id);
                     }
@@ -180,7 +293,10 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
     let conn = analyze_items(&items);
     for (net, missing) in &conn.unrouted {
         let pos = conn.ratsnest.iter().find(|l| &l.net == net).map(|l| l.a);
-        let mut is = Issue::new(Severity::Warning, format!("Net {net} has {missing} unrouted connection(s)"));
+        let mut is = Issue::new(
+            Severity::Warning,
+            format!("Net {net} has {missing} unrouted connection(s)"),
+        );
         is.pos = pos;
         out.push(is);
     }
@@ -198,7 +314,14 @@ mod tests {
     use crate::units::mm;
 
     fn track(id: u64, ax: f64, ay: f64, bx: f64, by: f64, net: &str) -> Track {
-        Track { id: Id(id), layer: Layer::TopCopper, a: Point::new(mm(ax), mm(ay)), b: Point::new(mm(bx), mm(by)), width: mm(0.25), net: net.into() }
+        Track {
+            id: Id(id),
+            layer: Layer::TopCopper,
+            a: Point::new(mm(ax), mm(ay)),
+            b: Point::new(mm(bx), mm(by)),
+            width: mm(0.25),
+            net: net.into(),
+        }
     }
 
     #[test]
@@ -209,11 +332,25 @@ mod tests {
         pcb.tracks.push(track(101, 10.0, 10.3, 30.0, 10.3, "B"));
         pcb.tracks.push(track(102, 20.0, 5.0, 20.0, 15.0, "C"));
         pcb.tracks.push(track(103, 40.0, 30.0, 60.0, 30.0, "D"));
-        pcb.vias.push(Via { id: Id(104), pos: Point::new(mm(5.0), mm(30.0)), diameter: mm(0.4), drill: mm(0.2), net: "E".into() });
+        pcb.vias.push(Via {
+            id: Id(104),
+            pos: Point::new(mm(5.0), mm(30.0)),
+            diameter: mm(0.4),
+            drill: mm(0.2),
+            net: "E".into(),
+        });
         let issues = run(&pcb, &p.library, Unit::Mm);
         let m: Vec<_> = issues.iter().map(|i| i.message.as_str()).collect();
-        assert!(m.iter().any(|s| s.starts_with("Clearance") && s.contains("(A)") && s.contains("(B)")), "{m:#?}");
-        assert!(m.iter().any(|s| s.starts_with("Short") && s.contains("(C)")), "{m:#?}");
+        assert!(
+            m.iter()
+                .any(|s| s.starts_with("Clearance") && s.contains("(A)") && s.contains("(B)")),
+            "{m:#?}"
+        );
+        assert!(
+            m.iter()
+                .any(|s| s.starts_with("Short") && s.contains("(C)")),
+            "{m:#?}"
+        );
         assert!(m.iter().any(|s| s.contains("outside the board")), "{m:#?}");
         assert!(m.iter().any(|s| s.starts_with("Via drill")), "{m:#?}");
         assert!(m.iter().any(|s| s.starts_with("Via annular")), "{m:#?}");

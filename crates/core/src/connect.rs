@@ -16,7 +16,10 @@ pub fn index(items: &[CopperItem]) -> ItemTree {
             .enumerate()
             .map(|(i, it)| {
                 let b = it.hull.bbox();
-                GeomWithData::new(Rectangle::from_corners([b.min.x, b.min.y], [b.max.x, b.max.y]), i)
+                GeomWithData::new(
+                    Rectangle::from_corners([b.min.x, b.min.y], [b.max.x, b.max.y]),
+                    i,
+                )
             })
             .collect(),
     )
@@ -54,7 +57,9 @@ pub struct BoardConnectivity {
 
 fn anchors(it: &CopperItem) -> Vec<Point> {
     match it.what {
-        CopperRef::Pad { .. } | CopperRef::Via(_) => vec![crate::geom::Rect::from_points(it.hull.points.iter().copied()).center()],
+        CopperRef::Pad { .. } | CopperRef::Via(_) => {
+            vec![crate::geom::Rect::from_points(it.hull.points.iter().copied()).center()]
+        }
         CopperRef::Track(_) => it.hull.points.clone(),
         CopperRef::Pour(..) => vec![],
     }
@@ -104,7 +109,11 @@ pub fn analyze_items(items: &[CopperItem]) -> BoardConnectivity {
         if matches!(it.what, CopperRef::Pad { .. }) {
             has_pad.insert(r, true);
         }
-        nets.entry(it.net.as_str()).or_default().entry(r).or_default().extend(anchors(it));
+        nets.entry(it.net.as_str())
+            .or_default()
+            .entry(r)
+            .or_default()
+            .extend(anchors(it));
     }
 
     let mut out = BoardConnectivity::default();
@@ -141,9 +150,17 @@ pub fn analyze_items(items: &[CopperItem]) -> BoardConnectivity {
             best[j] = closest(&clusters[0], &clusters[j]);
         }
         for _ in 1..n {
-            let (k, _) = (0..n).filter(|&j| !in_tree[j]).map(|j| (j, best[j].0)).min_by(|a, b| a.1.total_cmp(&b.1)).unwrap();
+            let (k, _) = (0..n)
+                .filter(|&j| !in_tree[j])
+                .map(|j| (j, best[j].0))
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+                .unwrap();
             in_tree[k] = true;
-            out.ratsnest.push(RatLine { net: name.to_string(), a: best[k].1, b: best[k].2 });
+            out.ratsnest.push(RatLine {
+                net: name.to_string(),
+                a: best[k].1,
+                b: best[k].2,
+            });
             for j in 0..n {
                 if !in_tree[j] {
                     let c = closest(&clusters[k], &clusters[j]);
@@ -172,7 +189,10 @@ mod tests {
 
     fn pad(id: u64, x: i64, net: &str) -> CopperItem {
         CopperItem {
-            what: CopperRef::Pad { comp: Id(id), pad: "1".into() },
+            what: CopperRef::Pad {
+                comp: Id(id),
+                pad: "1".into(),
+            },
             net: net.into(),
             layer: Layer::TopCopper,
             hull: Hull::circle(Point::new(x, 0), 10),
@@ -181,7 +201,12 @@ mod tests {
 
     #[test]
     fn ratsnest_until_routed() {
-        let mut items = vec![pad(1, 0, "A"), pad(2, 100, "A"), pad(3, 200, "A"), pad(4, 300, "B")];
+        let mut items = vec![
+            pad(1, 0, "A"),
+            pad(2, 100, "A"),
+            pad(3, 200, "A"),
+            pad(4, 300, "B"),
+        ];
         let c = analyze_items(&items);
         assert_eq!(c.unrouted.get("A"), Some(&2));
         assert_eq!(c.ratsnest.len(), 2);

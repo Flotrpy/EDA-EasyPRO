@@ -100,7 +100,9 @@ pub enum PadShape {
     Round,
     Oval,
     /// Rounded rectangle; corner radius is `ratio` (0..0.5) of the short side.
-    RoundRect { ratio_pct: u8 },
+    RoundRect {
+        ratio_pct: u8,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,11 +136,17 @@ pub struct Hull {
 
 impl Hull {
     pub fn circle(c: Point, r: i64) -> Hull {
-        Hull { points: vec![c], radius: r }
+        Hull {
+            points: vec![c],
+            radius: r,
+        }
     }
 
     pub fn capsule(a: Point, b: Point, r: i64) -> Hull {
-        Hull { points: vec![a, b], radius: r }
+        Hull {
+            points: vec![a, b],
+            radius: r,
+        }
     }
 
     pub fn polygon(points: Vec<Point>) -> Hull {
@@ -156,7 +164,9 @@ impl Hull {
             (1, 1) => self.points[0].dist(o.points[0]),
             (1, 2) => point_segment_dist(self.points[0], o.points[0], o.points[1]),
             (2, 1) => point_segment_dist(o.points[0], self.points[0], self.points[1]),
-            (2, 2) => segment_segment_dist(self.points[0], self.points[1], o.points[0], o.points[1]),
+            (2, 2) => {
+                segment_segment_dist(self.points[0], self.points[1], o.points[0], o.points[1])
+            }
             (1, _) => point_polygon_dist(self.points[0], &o.points),
             (_, 1) => point_polygon_dist(o.points[0], &self.points),
             (2, _) => segment_polygon_dist(self.points[0], self.points[1], &o.points),
@@ -179,7 +189,13 @@ impl Hull {
                 let (a, b) = (self.points[0], self.points[1]);
                 let ang = ((b.y - a.y) as f64).atan2((b.x - a.x) as f64).to_degrees();
                 let mut v = crate::geom::arc_points(b, self.radius, ang - 90.0, 180.0, 15.0);
-                v.extend(crate::geom::arc_points(a, self.radius, ang + 90.0, 180.0, 15.0));
+                v.extend(crate::geom::arc_points(
+                    a,
+                    self.radius,
+                    ang + 90.0,
+                    180.0,
+                    15.0,
+                ));
                 v
             }
             _ if self.radius > 0 => crate::pour::offset_polygon(&self.points, self.radius),
@@ -188,7 +204,10 @@ impl Hull {
     }
 
     pub fn inflate(&self, d: i64) -> Hull {
-        Hull { points: self.points.clone(), radius: self.radius + d }
+        Hull {
+            points: self.points.clone(),
+            radius: self.radius + d,
+        }
     }
 }
 
@@ -223,12 +242,23 @@ impl Pad {
                 }
             }
             PadShape::Rect => Hull::polygon(
-                Rect::around(Point::ZERO, w / 2, h / 2).corners().iter().map(|c| place(*c)).collect(),
+                Rect::around(Point::ZERO, w / 2, h / 2)
+                    .corners()
+                    .iter()
+                    .map(|c| place(*c))
+                    .collect(),
             ),
             PadShape::RoundRect { ratio_pct } => {
                 let r = w.min(h) * ratio_pct.min(50) as i64 / 100;
-                let pts = Rect::around(Point::ZERO, w / 2 - r, h / 2 - r).corners().iter().map(|c| place(*c)).collect();
-                Hull { points: pts, radius: r }
+                let pts = Rect::around(Point::ZERO, w / 2 - r, h / 2 - r)
+                    .corners()
+                    .iter()
+                    .map(|c| place(*c))
+                    .collect();
+                Hull {
+                    points: pts,
+                    radius: r,
+                }
             }
         }
     }
@@ -298,7 +328,10 @@ pub enum Body {
     /// Plain box (modules, connectors, switches).
     Box,
     /// Triangle mesh imported from an OBJ file. Coordinates in nm.
-    Mesh { vertices: Vec<[i64; 3]>, triangles: Vec<[u32; 3]> },
+    Mesh {
+        vertices: Vec<[i64; 3]>,
+        triangles: Vec<[u32; 3]>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -349,7 +382,11 @@ impl Device {
     }
 
     pub fn pin_for_pad<'a>(&'a self, pad: &'a str) -> &'a str {
-        self.pin_map.iter().find(|(_, v)| v.as_str() == pad).map(|(k, _)| k.as_str()).unwrap_or(pad)
+        self.pin_map
+            .iter()
+            .find(|(_, v)| v.as_str() == pad)
+            .map(|(k, _)| k.as_str())
+            .unwrap_or(pad)
     }
 }
 
@@ -380,20 +417,32 @@ impl Library {
 
     /// Copy a device and the symbol/footprint it references from `src`.
     pub fn import_device(&mut self, src: &Library, id: &str) -> bool {
-        let Some(d) = src.devices.get(id) else { return false };
+        let Some(d) = src.devices.get(id) else {
+            return false;
+        };
         if let Some(s) = src.symbols.get(&d.symbol) {
-            self.symbols.entry(s.id.clone()).or_insert_with(|| s.clone());
+            self.symbols
+                .entry(s.id.clone())
+                .or_insert_with(|| s.clone());
         }
         if let Some(f) = d.footprint.as_ref().and_then(|f| src.footprints.get(f)) {
-            self.footprints.entry(f.id.clone()).or_insert_with(|| f.clone());
+            self.footprints
+                .entry(f.id.clone())
+                .or_insert_with(|| f.clone());
         }
-        self.devices.entry(d.id.clone()).or_insert_with(|| d.clone());
+        self.devices
+            .entry(d.id.clone())
+            .or_insert_with(|| d.clone());
         true
     }
 
     /// Case-insensitive search over name, value, category and attributes.
     pub fn search(&self, query: &str) -> Vec<&Device> {
-        let terms: Vec<String> = query.to_lowercase().split_whitespace().map(String::from).collect();
+        let terms: Vec<String> = query
+            .to_lowercase()
+            .split_whitespace()
+            .map(String::from)
+            .collect();
         let mut hits: Vec<&Device> = self
             .devices
             .values()
@@ -431,7 +480,10 @@ impl Library {
                 for pin in &sym.pins {
                     let pad = d.pad_for_pin(&pin.number);
                     if fp.pad(pad).is_none() {
-                        out.push(format!("{}: pin {} has no pad {pad} in {fid}", d.id, pin.number));
+                        out.push(format!(
+                            "{}: pin {} has no pad {pad} in {fid}",
+                            d.id, pin.number
+                        ));
                     }
                 }
             }
@@ -466,7 +518,10 @@ mod tests {
         assert!(o.contains(Point::new(mm(1.49), 0)));
         assert!(!o.contains(Point::new(mm(1.49), mm(0.45))));
         let c = pad(PadShape::Round, 1.0, 1.0).hull(&tf);
-        assert_eq!(c.distance(&Hull::circle(Point::new(mm(2.0), 0), mm(0.5))), mm(1.0) as f64);
+        assert_eq!(
+            c.distance(&Hull::circle(Point::new(mm(2.0), 0), mm(0.5))),
+            mm(1.0) as f64
+        );
     }
 
     #[test]
