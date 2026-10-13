@@ -77,6 +77,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("edit.delete", "Delete", "Edit", "Delete", Canvas, "trash", a::delete),
     cmd!("edit.delete2", "Delete", "", "Backspace", Canvas, "trash", a::delete),
     cmd!("edit.select_all", "Select All", "Edit", "Ctrl+A", Canvas, "select", a::select_all),
+    cmd!("edit.select_similar", "Select Similar Parts", "Edit", "", Canvas, "select", a::select_similar),
     cmd!("edit.rotate", "Rotate 90°", "Edit", "R", Canvas, "rotate", a::rotate),
     cmd!("edit.rotate_space", "Rotate 90°", "", "Space", Canvas, "rotate", a::rotate),
     cmd!("edit.mirror", "Mirror", "Edit", "X", Sch, "mirror", a::mirror),

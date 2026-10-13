@@ -987,6 +987,45 @@ pub fn select_net(app: &AppState) {
     }
 }
 
+/// Select every part with the same device and value as the selection.
+pub fn select_similar(app: &AppState) {
+    use easypro_core::edit::similar;
+    let Some(b) = board_id(app) else { return };
+    let sel = app.selection.get_untracked();
+    let ids = app.project.with_untracked(|p| {
+        let Some(bd) = p.board(b) else { return vec![] };
+        match app.tab_untracked() {
+            Tab::Schematic { sheet, .. } => bd
+                .schematic
+                .sheets
+                .get(sheet)
+                .map(|s| {
+                    similar(
+                        &s.components,
+                        &sel,
+                        |c| c.id,
+                        |c| (c.device.clone(), c.value.clone()),
+                    )
+                })
+                .unwrap_or_default(),
+            Tab::Pcb { .. } => similar(
+                &bd.pcb.components,
+                &sel,
+                |c| c.id,
+                |c| (c.device.clone(), c.value.clone()),
+            ),
+            _ => vec![],
+        }
+    });
+    if ids.is_empty() {
+        app.status.set("Select a part first".into());
+    } else {
+        app.status
+            .set(format!("Selected {} similar part(s)", ids.len()));
+        app.selection.set(ids);
+    }
+}
+
 /// Lock the selected parts, or unlock them if they are all locked.
 pub fn toggle_lock(app: &AppState) {
     let Some(b) = board_id(app) else { return };

@@ -586,6 +586,29 @@ pub fn pcb_paste(pcb: &mut Pcb, frag: &PcbFragment, d: Point, ids: &mut IdGen) -
     out
 }
 
+/// Ids of every item whose key (e.g. device and value) matches the key of
+/// any selected item. Used by "Select Similar".
+pub fn similar<T, K: PartialEq>(
+    items: &[T],
+    selection: &[Id],
+    id: impl Fn(&T) -> Id,
+    key: impl Fn(&T) -> K,
+) -> Vec<Id> {
+    let keys: Vec<K> = items
+        .iter()
+        .filter(|t| selection.contains(&id(t)))
+        .map(&key)
+        .collect();
+    if keys.is_empty() {
+        return Vec::new();
+    }
+    items
+        .iter()
+        .filter(|t| keys.contains(&key(t)))
+        .map(id)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -732,5 +755,20 @@ mod tests {
         let frag = pcb_copy(pcb, &[id]);
         let new = pcb_paste(pcb, &frag, Point::new(0, 1000), &mut p.ids);
         assert_eq!(new.len(), 1);
+    }
+
+    #[test]
+    fn similar_matches_device_and_value() {
+        let items = [
+            (Id(1), "R", "10k"),
+            (Id(2), "R", "10k"),
+            (Id(3), "R", "1k"),
+            (Id(4), "C", "10k"),
+        ];
+        let got = similar(&items, &[Id(1)], |t| t.0, |t| (t.1, t.2));
+        assert_eq!(got, vec![Id(1), Id(2)]);
+        let got = similar(&items, &[Id(3), Id(4)], |t| t.0, |t| (t.1, t.2));
+        assert_eq!(got, vec![Id(3), Id(4)]);
+        assert!(similar(&items, &[Id(9)], |t| t.0, |t| t.1).is_empty());
     }
 }
