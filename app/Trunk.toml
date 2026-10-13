@@ -1,0 +1,8 @@
+[build]
+target = "index.html"
+dist = "dist"
+# GitHub Pages serves the site from /EDA-EasyPRO/; override with --public-url.
+public_url = "/"
+
+[serve]
+port = 8080

@@ -1,0 +1,11 @@
+{
+  "name": "EasyPRO",
+  "short_name": "EasyPRO",
+  "description": "Free, local-first schematic capture, PCB layout and 3D preview.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#3c78d8",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
