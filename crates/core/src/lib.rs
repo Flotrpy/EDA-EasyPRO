@@ -21,6 +21,7 @@ pub mod pcb;
 pub mod pour;
 pub mod project;
 pub mod route;
+pub mod scene;
 pub mod schematic;
 pub mod sexpr;
 pub mod shape;
