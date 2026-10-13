@@ -59,6 +59,8 @@ pub enum SceneLayer {
     Schematic,
     Pcb(Layer),
     Drill,
+    /// Pad numbers and net names; editors show it only when zoomed in.
+    PadText,
     Ratsnest,
     Overlay,
 }
@@ -890,6 +892,54 @@ fn footprint_items(
                 },
             );
         }
+        if nets.is_some() && !matches!(pad.kind, PadKind::Npth { .. }) {
+            pad_label_items(pad, tf, net, scene);
+        }
+    }
+}
+
+/// Pad number (and net name below it) sized to fit inside the pad.
+fn pad_label_items(pad: &crate::library::Pad, tf: &Transform, net: &str, scene: &mut Scene) {
+    let b = pad.hull(tf).bbox();
+    let (w, h) = (b.width() as f64, b.height() as f64);
+    let lines: Vec<&str> = if net.is_empty() {
+        vec![&pad.number]
+    } else {
+        vec![&pad.number, net]
+    };
+    let fit = |text: &str, max_h: f64| -> i64 {
+        let chars = text.chars().count().max(1) as f64;
+        // Glyph advance is about 0.93 of the cap height.
+        (max_h.min(w * 0.85 / (chars * 0.93))) as i64
+    };
+    let c = b.center();
+    let rows = lines.len() as f64;
+    let mut y = c.y as f64 + (rows - 1.0) * h * 0.18;
+    for (i, text) in lines.iter().enumerate() {
+        let size = fit(text, h * if i == 0 { 0.42 } else { 0.28 } / rows.sqrt());
+        if size < 20_000 {
+            continue;
+        }
+        let mut v = Vec::new();
+        let color = if i == 0 {
+            rgba(0xffffff, 230)
+        } else {
+            rgba(0xfff3b0, 220)
+        };
+        text_items(
+            text,
+            size,
+            Point::new(c.x, (y - size as f64 / 2.0) as i64),
+            0.0,
+            Align::Center,
+            color,
+            None,
+            &mut v,
+        );
+        for it in v {
+            scene.push(SceneLayer::PadText, it);
+        }
+        y -= h * 0.36;
     }
 }
 
