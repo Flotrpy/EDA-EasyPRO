@@ -29,7 +29,9 @@ jobs:
       - name: Tests
         run: cargo test --workspace
       - name: Fabrication package smoke test
-        run: cargo run -p easypro-export --example fab_package -- blinker-fab.zip
+        run: |
+          cargo run -p easypro-export --example fab_package -- blinker-fab.zip jlcpcb 555
+          cargo run -p easypro-export --example fab_package -- regulator-fab.zip pcbway 3.3v
 
   build:
     name: Build web app and smoke test
