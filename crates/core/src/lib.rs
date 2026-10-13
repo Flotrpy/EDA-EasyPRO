@@ -3,6 +3,7 @@
 //! The model stores all lengths as integer nanometres so that geometry is
 //! exact, files diff cleanly and Gerber output never accumulates rounding.
 
+pub mod board;
 pub mod builtin;
 pub mod check;
 pub mod connect;
