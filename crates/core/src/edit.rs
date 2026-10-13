@@ -97,6 +97,43 @@ pub fn sch_move(sheet: &mut Sheet, lib: &Library, ids: &[Id], d: Point) {
     sheet.tidy_wires();
 }
 
+/// Which end of a wire is near `p` (0 = first point, 1 = last point).
+pub fn wire_end_near(sheet: &Sheet, wire: Id, p: Point, tol: i64) -> Option<usize> {
+    let w = sheet.wires.iter().find(|w| w.id == wire)?;
+    let (a, b) = (*w.points.first()?, *w.points.last()?);
+    let (da, db) = (a.dist(p), b.dist(p));
+    if da.min(db) > tol as f64 {
+        return None;
+    }
+    Some(if da <= db { 0 } else { 1 })
+}
+
+/// Drag one end of a wire to `to`, adding a corner so it stays orthogonal.
+pub fn sch_drag_wire_end(sheet: &mut Sheet, wire: Id, end: usize, to: Point) {
+    let Some(w) = sheet.wires.iter_mut().find(|w| w.id == wire) else {
+        return;
+    };
+    let n = w.points.len();
+    if n < 2 {
+        return;
+    }
+    let (idx, nb) = if end == 0 { (0, 1) } else { (n - 1, n - 2) };
+    let from = w.points[idx];
+    let neighbor = w.points[nb];
+    let horizontal = neighbor.y == from.y;
+    w.points[idx] = to;
+    if to.x != neighbor.x && to.y != neighbor.y {
+        let corner = if horizontal {
+            Point::new(to.x, neighbor.y)
+        } else {
+            Point::new(neighbor.x, to.y)
+        };
+        let at = if end == 0 { 1 } else { n - 1 };
+        w.points.insert(at, corner);
+    }
+    sheet.tidy_wires();
+}
+
 /// Rotate schematic objects counter-clockwise by `deg` about `c`.
 pub fn sch_rotate(sheet: &mut Sheet, ids: &[Id], c: Point, deg: f64) {
     let set: HashSet<Id> = ids.iter().copied().collect();
@@ -525,6 +562,33 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn dragging_a_wire_end_keeps_it_orthogonal() {
+        let mut s = Sheet::default();
+        s.wires.push(Wire {
+            id: Id(1),
+            points: vec![Point::new(0, 0), Point::new(100, 0)],
+        });
+        assert_eq!(wire_end_near(&s, Id(1), Point::new(98, 2), 5), Some(1));
+        assert_eq!(wire_end_near(&s, Id(1), Point::new(50, 0), 5), None);
+        sch_drag_wire_end(&mut s, Id(1), 1, Point::new(150, 40));
+        assert_eq!(
+            s.wires[0].points,
+            vec![Point::new(0, 0), Point::new(150, 0), Point::new(150, 40)]
+        );
+        // Dragging back along the line just shortens it.
+        let mut s2 = Sheet::default();
+        s2.wires.push(Wire {
+            id: Id(1),
+            points: vec![Point::new(0, 0), Point::new(100, 0)],
+        });
+        sch_drag_wire_end(&mut s2, Id(1), 0, Point::new(30, 0));
+        assert_eq!(
+            s2.wires[0].points,
+            vec![Point::new(30, 0), Point::new(100, 0)]
+        );
     }
 
     #[test]
