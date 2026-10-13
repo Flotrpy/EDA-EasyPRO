@@ -220,10 +220,19 @@ pub enum ViewCmd {
     Show(Point),
 }
 
-#[derive(Clone, Debug)]
+/// Clipboard content. It carries the parts it uses so it can be pasted
+/// into another project (also through the system clipboard as JSON).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "easypro_clip", rename_all = "snake_case")]
 pub enum Clip {
-    Sch(easypro_core::edit::SchFragment),
-    Pcb(easypro_core::edit::PcbFragment),
+    Sch {
+        fragment: easypro_core::edit::SchFragment,
+        library: easypro_core::library::Library,
+    },
+    Pcb {
+        fragment: easypro_core::edit::PcbFragment,
+        library: easypro_core::library::Library,
+    },
 }
 
 #[derive(Clone, Copy)]

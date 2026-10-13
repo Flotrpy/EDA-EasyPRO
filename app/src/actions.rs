@@ -258,18 +258,33 @@ pub fn copy(app: &AppState) {
     let Some(b) = board_id(app) else { return };
     let clip = app.project.with_untracked(|p| {
         let board = p.board(b)?;
+        let mut library = easypro_core::library::Library::default();
         Some(match app.tab_untracked() {
             Tab::Schematic { sheet, .. } => {
-                Clip::Sch(edit::sch_copy(board.schematic.sheets.get(sheet)?, &sel))
+                let fragment = edit::sch_copy(board.schematic.sheets.get(sheet)?, &sel);
+                for c in &fragment.components {
+                    library.import_device(&p.library, &c.device);
+                }
+                Clip::Sch { fragment, library }
             }
-            Tab::Pcb { .. } => Clip::Pcb(edit::pcb_copy(&board.pcb, &sel)),
+            Tab::Pcb { .. } => {
+                let fragment = edit::pcb_copy(&board.pcb, &sel);
+                for c in &fragment.components {
+                    library.import_device(&p.library, &c.device);
+                    if let Some(f) = p.library.footprints.get(&c.footprint) {
+                        library
+                            .footprints
+                            .entry(f.id.clone())
+                            .or_insert_with(|| f.clone());
+                    }
+                }
+                Clip::Pcb { fragment, library }
+            }
             _ => return None,
         })
     });
     if let Some(c) = clip {
-        if let Clip::Sch(f) = &c {
-            js::copy_text(&serde_json::to_string(f).unwrap_or_default());
-        }
+        js::copy_text(&serde_json::to_string(&c).unwrap_or_default());
         app.clipboard.set_value(Some(c));
         app.status.set(format!("Copied {} object(s)", sel.len()));
     }
@@ -284,9 +299,47 @@ pub fn paste(app: &AppState) {
     paste_offset(app, None);
 }
 
+/// Add parts that came with pasted content to the project library.
+fn merge_library(p: &mut Project, lib: &easypro_core::library::Library) {
+    for s in lib.symbols.values() {
+        p.library
+            .symbols
+            .entry(s.id.clone())
+            .or_insert_with(|| s.clone());
+    }
+    for f in lib.footprints.values() {
+        p.library
+            .footprints
+            .entry(f.id.clone())
+            .or_insert_with(|| f.clone());
+    }
+    for d in lib.devices.values() {
+        p.library
+            .devices
+            .entry(d.id.clone())
+            .or_insert_with(|| d.clone());
+    }
+}
+
 fn paste_offset(app: &AppState, offset: Option<Point>) {
     let Some(clip) = app.clipboard.get_value() else {
-        app.status.set("Clipboard is empty".into());
+        // Nothing copied in this tab: try the system clipboard, which may
+        // hold content copied from another project or browser tab.
+        let app = *app;
+        spawn_local(async move {
+            let text = wasm_bindgen_futures::JsFuture::from(js::read_clipboard())
+                .await
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_default();
+            match serde_json::from_str::<Clip>(&text) {
+                Ok(c) => {
+                    app.clipboard.set_value(Some(c));
+                    paste_offset(&app, offset);
+                }
+                Err(_) => app.status.set("Clipboard is empty".into()),
+            }
+        });
         return;
     };
     let Some(b) = board_id(app) else { return };
@@ -294,9 +347,16 @@ fn paste_offset(app: &AppState, offset: Option<Point>) {
     let cursor = app.cursor.get_untracked();
     let mut new_ids = Vec::new();
     match (clip, tab) {
-        (Clip::Sch(frag), Tab::Schematic { sheet, .. }) => {
+        (
+            Clip::Sch {
+                fragment: frag,
+                library,
+            },
+            Tab::Schematic { sheet, .. },
+        ) => {
             let grid = app.settings.with_untracked(|s| s.sch_grid);
             app.edit("Paste", |p| {
+                merge_library(p, &library);
                 let lib = p.library.clone();
                 let bb = edit::frag_bbox(&frag, &lib);
                 let d = offset.unwrap_or_else(|| match cursor {
@@ -317,8 +377,15 @@ fn paste_offset(app: &AppState, offset: Option<Point>) {
                 }
             });
         }
-        (Clip::Pcb(frag), Tab::Pcb { .. }) => {
+        (
+            Clip::Pcb {
+                fragment: frag,
+                library,
+            },
+            Tab::Pcb { .. },
+        ) => {
             app.edit("Paste", |p| {
+                merge_library(p, &library);
                 let d = offset.unwrap_or(Point::new(mm(2.0), -mm(2.0)));
                 let mut ids = std::mem::take(&mut p.ids);
                 if let Some(bd) = p.board_mut(b) {

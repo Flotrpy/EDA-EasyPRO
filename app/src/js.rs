@@ -92,6 +92,10 @@ export function register_sw() {
 }
 export function now_iso() { return new Date().toISOString(); }
 export function local_time(iso) { try { return new Date(iso).toLocaleString(); } catch (e) { return iso; } }
+export function read_clipboard() {
+  if (navigator.clipboard && navigator.clipboard.readText) return navigator.clipboard.readText().catch(() => '');
+  return Promise.resolve('');
+}
 export function copy_text(t) { if (navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {}); }
 export function focus_canvas() { const c = document.querySelector('.editor canvas'); if (c) c.focus(); }
 "#)]
@@ -108,5 +112,6 @@ extern "C" {
     pub fn now_iso() -> String;
     pub fn local_time(iso: &str) -> String;
     pub fn copy_text(text: &str);
+    pub fn read_clipboard() -> js_sys::Promise;
     pub fn focus_canvas();
 }
