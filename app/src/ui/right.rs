@@ -403,9 +403,29 @@ fn pcb_props(app: &AppState, b: Id, sel: &[Id]) -> impl IntoView {
         }
         Some(PcbKind::Graphic) => {
             let g = pcb.graphics.iter().find(|t| t.id == id).cloned().unwrap();
+            let text = match &g.shape {
+                easypro_core::shape::Shape::Text { text, size, .. } => Some((text.clone(), *size)),
+                _ => None,
+            };
+            let set_text = move |f: Box<dyn FnOnce(&mut String, &mut i64)>| {
+                pcb_edit(&app, b, "Edit text", false, |p| {
+                    if let Some(easypro_core::shape::Shape::Text { text, size, .. }) = p
+                        .graphics
+                        .iter_mut()
+                        .find(|t| t.id == id)
+                        .map(|g| &mut g.shape)
+                    {
+                        f(text, size);
+                    }
+                })
+            };
             view! {
-                <h4>"Graphic"</h4>
+                <h4>{if text.is_some() { "Text" } else { "Graphic" }}</h4>
                 <SelectProp label="Layer" options=layer_options(&pcb, false) value=g.layer.name() on_set=move |v| pcb_edit(&app, b, "Graphic layer", false, |p| { let l = layer_by_name(p, &v); if let (Some(t), Some(l)) = (p.graphics.iter_mut().find(|t| t.id == id), l) { t.layer = l } }) />
+                {text.map(|(t, size)| view! {
+                    <TextProp label="Text" value=t on_set=move |v| set_text(Box::new(move |t, _| *t = v)) />
+                    <LenProp label="Height" nm=size on_set=move |v| set_text(Box::new(move |_, s| *s = v.max(100_000))) />
+                })}
             }
             .into_any()
         }
