@@ -302,4 +302,72 @@ mod tests {
         assert!(msgs.iter().any(|m| m.contains("Net label X")), "{msgs:?}");
         assert_eq!(issues[0].severity, Severity::Error);
     }
+    #[test]
+    fn output_conflicts_and_single_pin_nets() {
+        use crate::schematic::{NetLabel, Wire};
+        let mut p = Project::new("t");
+        p.library.import_device(builtin::library(), "dev:LMV321");
+        let mk = |id: u64, des: &str, x: f64| Component {
+            id: Id(id),
+            device: "dev:LMV321".into(),
+            designator: des.into(),
+            value: "LMV321".into(),
+            pos: Point::new(mil(x), 0),
+            rotation: 0.0,
+            mirror: false,
+            attributes: Default::default(),
+            exclude_from_bom: false,
+            designator_offset: None,
+            value_offset: None,
+        };
+        let s = &mut p.boards[0].schematic.sheets[0];
+        s.components.push(mk(10, "U1", 0.0));
+        s.components.push(mk(11, "U2", 2000.0));
+        // Join both outputs (pin 1 at x = +300 mil of each part) with a label.
+        s.wires.push(Wire {
+            id: Id(12),
+            points: vec![Point::new(mil(300.0), 0), Point::new(mil(500.0), 0)],
+        });
+        s.labels.push(NetLabel {
+            id: Id(13),
+            name: "OUT".into(),
+            pos: Point::new(mil(500.0), 0),
+            rotation: 0.0,
+        });
+        s.wires.push(Wire {
+            id: Id(14),
+            points: vec![Point::new(mil(2300.0), 0), Point::new(mil(2500.0), 0)],
+        });
+        s.labels.push(NetLabel {
+            id: Id(15),
+            name: "OUT".into(),
+            pos: Point::new(mil(2500.0), 0),
+            rotation: 0.0,
+        });
+        // A lone labelled pin: U1's +IN.
+        s.wires.push(Wire {
+            id: Id(16),
+            points: vec![
+                Point::new(mil(-300.0), -mil(100.0)),
+                Point::new(mil(-500.0), -mil(100.0)),
+            ],
+        });
+        s.labels.push(NetLabel {
+            id: Id(17),
+            name: "LONELY".into(),
+            pos: Point::new(mil(-500.0), -mil(100.0)),
+            rotation: 0.0,
+        });
+        let issues = run(&p.boards[0].schematic, &p.library);
+        let m: Vec<_> = issues.iter().map(|i| i.message.as_str()).collect();
+        assert!(
+            m.iter()
+                .any(|s| s.contains("Net OUT is driven by 2 outputs")),
+            "{m:#?}"
+        );
+        assert!(
+            m.iter().any(|s| s.contains("Net LONELY has only one pin")),
+            "{m:#?}"
+        );
+    }
 }
