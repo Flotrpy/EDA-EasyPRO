@@ -70,6 +70,8 @@ pub enum Gesture {
         before: Box<Project>,
         ids: Vec<Id>,
         delta: Point,
+        /// Dragging a handle (e.g. a wire end) instead of whole objects.
+        grab: Option<Grab>,
     },
     Box {
         a: (f64, f64),
@@ -127,6 +129,13 @@ impl View {
     }
 }
 
+/// A handle on an object that can be dragged on its own.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Grab {
+    /// End 0 (first point) or 1 (last point) of a wire.
+    WireEnd(Id, usize),
+}
+
 /// Behaviour that differs between editors.
 pub trait Handler {
     fn build(&self, app: &AppState, k: &Kind) -> Option<Built>;
@@ -152,6 +161,12 @@ pub trait Handler {
     }
     fn overlay(&self, _app: &AppState, _k: &Kind, _v: &View, _m: &mut Mesh) {}
     fn open_item(&self, _app: &AppState, _k: &Kind, _id: Id) {}
+    /// A draggable handle of `id` near `at`, if any.
+    fn grab(&self, _app: &AppState, _k: &Kind, _id: Id, _at: Point, _tol: i64) -> Option<Grab> {
+        None
+    }
+    /// Move a handle to `to`.
+    fn apply_grab(&self, _p: &mut Project, _k: &Kind, _g: Grab, _to: Point) {}
     /// One-line description for the status bar.
     fn describe(&self, _app: &AppState, _k: &Kind, _id: Id) -> String {
         String::new()
@@ -615,11 +630,16 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                                         app.selection.set(sel.clone());
                                     }
                                     let before = Box::new(app.project.get_untracked());
+                                    let grab = h.grab(&app, &kind, id, v.raw, tol);
+                                    if grab.is_some() {
+                                        app.selection.set(vec![id]);
+                                    }
                                     v.gesture = Gesture::Drag {
                                         start: v.cursor,
                                         before,
                                         ids: sel,
                                         delta: Point::ZERO,
+                                        grab,
                                     };
                                 }
                             }
@@ -679,12 +699,16 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                             before,
                             ids,
                             delta,
+                            grab,
                         } => {
                             let d = v.cursor - *start;
                             if d != *delta {
                                 *delta = d;
                                 let mut p = (**before).clone();
-                                h.apply_move(&mut p, &kind, ids, d);
+                                match grab {
+                                    Some(g) => h.apply_grab(&mut p, &kind, *g, v.cursor),
+                                    None => h.apply_move(&mut p, &kind, ids, d),
+                                }
                                 app.project.set(p);
                                 app.rev.update(|r| *r += 1);
                             }

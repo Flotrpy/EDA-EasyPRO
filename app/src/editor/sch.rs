@@ -495,6 +495,30 @@ impl Handler for SchHandler {
         })
     }
 
+    fn grab(
+        &self,
+        app: &AppState,
+        k: &Kind,
+        id: Id,
+        at: Point,
+        tol: i64,
+    ) -> Option<super::canvas::Grab> {
+        let (b, s) = kk(k);
+        app.project.with_untracked(|p| {
+            let sh = p.board(b)?.schematic.sheets.get(s)?;
+            easypro_core::edit::wire_end_near(sh, id, at, tol * 2)
+                .map(|end| super::canvas::Grab::WireEnd(id, end))
+        })
+    }
+
+    fn apply_grab(&self, p: &mut Project, k: &Kind, g: super::canvas::Grab, to: Point) {
+        let (b, s) = kk(k);
+        let super::canvas::Grab::WireEnd(id, end) = g;
+        if let Some(sh) = p.board_mut(b).and_then(|bd| bd.schematic.sheets.get_mut(s)) {
+            easypro_core::edit::sch_drag_wire_end(sh, id, end, to);
+        }
+    }
+
     fn open_item(&self, app: &AppState, k: &Kind, id: Id) {
         let (b, s) = kk(k);
         let label = app.project.with_untracked(|p| {
