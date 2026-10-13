@@ -20,6 +20,7 @@ fn tool_of(id: &str) -> Option<Tool> {
         "tool.pour" => Tool::Pour,
         "tool.outline" => Tool::Outline,
         "tool.line" => Tool::Line,
+        "tool.board_text" => Tool::BoardText,
         "tool.measure" => Tool::Measure,
         "sym.pin" => Tool::Pin,
         "sym.line" => Tool::SymLine,
@@ -110,6 +111,7 @@ pub fn Toolbar() -> impl IntoView {
                     <Btn id="tool.pour" />
                     <Btn id="tool.outline" />
                     <Btn id="tool.line" />
+                    <Btn id="tool.board_text" />
                     <Btn id="tool.measure" />
                     <span class="sep"></span>
                     <Btn id="edit.rotate" />

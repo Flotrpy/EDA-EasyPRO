@@ -122,6 +122,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("tool.pour", "Copper Area", "Route", "E", Pcb, "pour", a::tool_pour),
     cmd!("tool.outline", "Board Outline", "Route", "", Pcb, "outline", a::tool_outline),
     cmd!("tool.line", "Silkscreen Line", "Route", "L", Pcb, "line", a::tool_line),
+    cmd!("tool.board_text", "Silkscreen Text", "Route", "Shift+T", Pcb, "text", a::tool_board_text),
     cmd!("tool.measure", "Measure", "Route", "M", Pcb, "measure", a::tool_measure),
     cmd!("pcb.layer_top", "Active Layer: Top", "Route", "T", Pcb, "layers", a::layer_top),
     cmd!("pcb.layer_bottom", "Active Layer: Bottom", "Route", "B", Pcb, "layers", a::layer_bottom),

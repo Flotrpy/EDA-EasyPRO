@@ -739,6 +739,9 @@ pub fn tool_outline(app: &AppState) {
 pub fn tool_line(app: &AppState) {
     set_tool(app, Tool::Line);
 }
+pub fn tool_board_text(app: &AppState) {
+    set_tool(app, Tool::BoardText);
+}
 pub fn tool_measure(app: &AppState) {
     set_tool(app, Tool::Measure);
 }

@@ -124,6 +124,7 @@ pub enum Tool {
     Pour,
     Outline,
     Line,
+    BoardText,
     Measure,
     // Symbol editor
     Pin,
@@ -154,6 +155,7 @@ impl Tool {
             Tool::Pour => "Click the corners of the copper area, double-click to close.",
             Tool::Outline => "Drag a rectangle to set the board outline.",
             Tool::Line => "Click to draw silkscreen lines on the active layer; double-click to finish.",
+            Tool::BoardText => "Click to place silkscreen text on the active side.",
             Tool::Measure => "Click two points to measure.",
             Tool::Pin => "Click to add a pin. Space rotates it.",
             Tool::SymLine | Tool::FpLine => "Click to draw lines; double-click to finish.",

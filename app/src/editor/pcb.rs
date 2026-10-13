@@ -326,6 +326,33 @@ impl Handler for PcbHandler {
                 v.tool.points = vec![v.cursor];
                 true
             }
+            Tool::BoardText => {
+                let text = web_sys::window().and_then(|w| {
+                    w.prompt_with_message_and_default("Silkscreen text", "")
+                        .ok()
+                        .flatten()
+                });
+                let Some(text) = text.map(|t| t.trim().to_string()).filter(|t| !t.is_empty())
+                else {
+                    return true;
+                };
+                let layer = silk_for(app.active_layer.get_untracked());
+                let at = v.cursor;
+                self.edit_pcb(app, k, "Add text", false, |pcb, ids| {
+                    pcb.graphics.push(PcbGraphic {
+                        id: ids.fresh(),
+                        layer,
+                        shape: Shape::Text {
+                            pos: at,
+                            text,
+                            size: 1_000_000,
+                            rotation: 0.0,
+                            align: Align::Left,
+                        },
+                    })
+                });
+                true
+            }
             Tool::Measure => {
                 if v.tool.points.len() != 1 {
                     v.tool.points = vec![v.cursor];
