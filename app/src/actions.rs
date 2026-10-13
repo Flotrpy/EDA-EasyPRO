@@ -954,6 +954,40 @@ pub fn select_net(app: &AppState) {
     }
 }
 
+/// Lock the selected parts, or unlock them if they are all locked.
+pub fn toggle_lock(app: &AppState) {
+    let Some(b) = board_id(app) else { return };
+    let sel = app.selection.get_untracked();
+    let mut state = None;
+    app.try_edit("Lock", |p| {
+        let Some(bd) = p.board_mut(b) else {
+            return false;
+        };
+        let parts: Vec<_> = bd
+            .pcb
+            .components
+            .iter_mut()
+            .filter(|c| sel.contains(&c.id))
+            .collect();
+        if parts.is_empty() {
+            return false;
+        }
+        let lock = !parts.iter().all(|c| c.locked);
+        for c in parts {
+            c.locked = lock;
+        }
+        state = Some(lock);
+        true
+    });
+    match state {
+        Some(true) => app
+            .status
+            .set("Locked: these parts can't be moved by accident".into()),
+        Some(false) => app.status.set("Unlocked".into()),
+        None => app.status.set("Select parts to lock".into()),
+    }
+}
+
 fn align(app: &AppState, mode: edit::AlignMode) {
     let Some(b) = board_id(app) else { return };
     let sel = app.selection.get_untracked();
