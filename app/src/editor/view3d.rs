@@ -155,6 +155,18 @@ pub fn View3dPane(board: Id) -> impl IntoView {
             with(&|st| st.borrow_mut().cam.zoom(f.clamp(0.5, 2.0)));
         }
     };
+    let stl = move |_| {
+        let o = opts.get_untracked();
+        let data = app.project.with_untracked(|p| {
+            let b = p.board(board)?;
+            let (mesh, _) = board_mesh(&b.pcb, &p.library, &o);
+            Some((p.name.clone(), easypro_view3d::stl::to_stl(&mesh, &p.name)))
+        });
+        if let Some((name, bytes)) = data {
+            crate::js::download(&format!("{name}.stl"), &bytes, "model/stl");
+            app.ok("Exported the board as STL (millimetres)");
+        }
+    };
     let screenshot = move |_| {
         if let Some(c) = node.get() {
             let c: web_sys::HtmlCanvasElement = c.unchecked_into();
@@ -204,6 +216,7 @@ pub fn View3dPane(board: Id) -> impl IntoView {
                 </select>
                 <span class="sep"></span>
                 <button on:click=screenshot title="Save a PNG image"><Icon name="download" />"PNG"</button>
+                <button on:click=stl title="Board and parts as STL for enclosure design"><Icon name="cube" />"STL"</button>
             </div>
             <div class="view3d-help">"Drag to orbit · Right-drag or Shift-drag to pan · Wheel to zoom"</div>
             {move || error.get().map(|e| view! { <div class="editor-error"><strong>"3D view unavailable"</strong><p>{e}</p></div> })}
