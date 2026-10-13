@@ -391,6 +391,9 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
     let node = NodeRef::<html::Canvas>::new();
     let view_cell: Rc<RefCell<Option<Rc<RefCell<View>>>>> = Rc::new(RefCell::new(None));
     let error = RwSignal::new(None::<String>);
+    // Set once the renderer exists, so camera commands issued while the
+    // tab was opening are applied.
+    let ready = RwSignal::new(false);
 
     {
         let view_cell = view_cell.clone();
@@ -428,6 +431,7 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                     }));
                     ACTIVE.with(|a| *a.borrow_mut() = Some((kind.clone(), v.clone())));
                     *view_cell.borrow_mut() = Some(v.clone());
+                    ready.set(true);
                     request_frame(app, kind.clone(), v);
                 }
                 Err(e) => error.set(Some(e)),
@@ -477,6 +481,7 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
         let view_cell = view_cell.clone();
         let kind = kind.clone();
         Effect::new(move |_| {
+            ready.track();
             let Some(cmd) = app.view_cmd.get() else {
                 return;
             };
