@@ -7,6 +7,7 @@ pub mod builtin;
 pub mod check;
 pub mod connect;
 pub mod drc;
+pub mod edit;
 pub mod erc;
 pub mod examples;
 pub mod font;
