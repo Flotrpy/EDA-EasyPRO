@@ -206,6 +206,7 @@ pub enum Dialog {
     NewProject,
     Rename,
     IcWizard,
+    Bom,
 }
 
 /// Requests from menus to the active editor's camera.

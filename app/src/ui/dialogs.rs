@@ -44,6 +44,7 @@ pub fn Dialogs() -> impl IntoView {
             Dialog::BoardSetup => view! { <BoardSetup /> }.into_any(),
             Dialog::History => view! { <History /> }.into_any(),
             Dialog::IcWizard => view! { <IcWizard /> }.into_any(),
+            Dialog::Bom => view! { <BomDialog /> }.into_any(),
         })
     }
 }
@@ -753,5 +754,79 @@ fn OutlineEditor() -> impl IntoView {
             <button on:click=apply><Icon name="outline" />"Apply Outline"</button>
             <button on:click=holes><Icon name="via" />"Add M3 Holes at Corners"</button>
         </div>
+    }
+}
+
+/// Bill of materials with editable supplier part numbers.
+#[component]
+fn BomDialog() -> impl IntoView {
+    use easypro_export::bom::{bom_csv, lines, BomStyle};
+    let app = use_app();
+    let board = actions::board_id(&app);
+    let rows = Memo::new(move |_| {
+        app.rev.track();
+        app.project
+            .with_untracked(|p| {
+                board
+                    .and_then(|b| p.board(b))
+                    .map(|bd| lines(&bd.schematic, &p.library))
+            })
+            .unwrap_or_default()
+    });
+    // Set an attribute on every part in a BOM line.
+    let set_attr = move |designators: Vec<String>, key: &'static str, value: String| {
+        let Some(b) = board else { return };
+        app.edit("Edit BOM", |p| {
+            if let Some(bd) = p.board_mut(b) {
+                for s in &mut bd.schematic.sheets {
+                    for c in s
+                        .components
+                        .iter_mut()
+                        .filter(|c| designators.contains(&c.designator))
+                    {
+                        c.attributes.insert(key.to_string(), value.clone());
+                    }
+                }
+            }
+        });
+    };
+    let download = move |style: BomStyle| {
+        let csv = bom_csv(&rows.get_untracked(), style);
+        let name = format!(
+            "{}-BOM{}.csv",
+            app.project.with_untracked(|p| p.name.clone()),
+            if style == BomStyle::Jlc { "-JLC" } else { "" }
+        );
+        js::download(&name, csv.as_bytes(), "text/csv");
+    };
+    view! {
+        <Modal title="Bill of Materials".into() wide=true>
+            <div class="bom-table">
+                <table class="kv small">
+                    <thead><tr><th>"Qty"</th><th>"Designators"</th><th>"Value"</th><th>"Footprint"</th><th>"MPN"</th><th>"LCSC"</th></tr></thead>
+                    <tbody>
+                        {move || rows.get().into_iter().map(|l| {
+                            let d1 = l.designators.clone();
+                            let d2 = l.designators.clone();
+                            view! {
+                                <tr>
+                                    <td class="num">{l.designators.len()}</td>
+                                    <td>{l.designators.join(", ")}</td>
+                                    <td>{l.value.clone()}</td>
+                                    <td>{l.footprint.clone()}</td>
+                                    <td><input type="text" prop:value=l.mpn.clone() on:change=move |ev| set_attr(d1.clone(), "MPN", event_target_value(&ev)) /></td>
+                                    <td><input type="text" placeholder="C…" prop:value=l.supplier_part.clone() on:change=move |ev| set_attr(d2.clone(), "LCSC", event_target_value(&ev)) /></td>
+                                </tr>
+                            }
+                        }).collect_view()}
+                    </tbody>
+                </table>
+            </div>
+            <p class="hint">{move || format!("{} lines, {} parts. Parts marked \"Exclude from BOM\" are left out.", rows.with(|r| r.len()), rows.with(|r| r.iter().map(|l| l.designators.len()).sum::<usize>()))}</p>
+            <div class="modal-foot">
+                <button on:click=move |_| download(BomStyle::Generic)><Icon name="download" />"CSV"</button>
+                <button class="primary" on:click=move |_| download(BomStyle::Jlc)><Icon name="download" />"JLCPCB format"</button>
+            </div>
+        </Modal>
     }
 }

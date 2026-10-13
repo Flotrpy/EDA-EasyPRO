@@ -436,6 +436,8 @@ table.netclasses input { min-width: 60px; }
 .mask-swatch { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid var(--border-strong); }
 .mask-swatch.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-weak); }
 
+.bom-table { max-height: 55vh; overflow: auto; }
+.bom-table input { min-width: 90px; }
 .history-list { display: flex; flex-direction: column; }
 .history-item { display: grid; grid-template-columns: 1fr 200px auto auto; align-items: center; gap: 8px; padding: 5px 4px; border-bottom: 1px solid var(--panel-3); }
 .history-item .ht { color: var(--muted); font-size: 12px; }
