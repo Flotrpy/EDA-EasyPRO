@@ -174,6 +174,28 @@ impl GerberWriter {
         }
     }
 
+    /// A shape on the bottom side: text is mirrored so it reads correctly
+    /// on the finished board.
+    pub fn shape_bottom(&mut self, s: &Shape) {
+        if let Shape::Text {
+            pos,
+            text,
+            size,
+            rotation,
+            align,
+        } = s
+        {
+            let w = font::stroke_width(*size);
+            let mut strokes = font::text_strokes(text, *size, *pos, *rotation, *align);
+            font::mirror_x(&mut strokes, pos.x);
+            for stroke in strokes {
+                self.polyline(&stroke, w);
+            }
+        } else {
+            self.shape(s);
+        }
+    }
+
     /// Draw a pad grown by `grow` on every side (mask expansion).
     pub fn pad(&mut self, pad: &Pad, tf: &Transform, grow: i64) {
         let rot = normalize_angle(pad.rotation + tf.rotation);
@@ -315,22 +337,36 @@ pub fn artwork(pcb: &Pcb, lib: &Library, what: Artwork) -> String {
                     .iter()
                     .filter(|gr| c.board_layer(gr.layer) == layer)
                 {
-                    g.shape(&gr.shape.transformed(&tf));
+                    let shape = gr.shape.transformed(&tf);
+                    if c.side == Side::Bottom {
+                        g.shape_bottom(&shape);
+                    } else {
+                        g.shape(&shape);
+                    }
                 }
                 if c.show_designator && c.side == side {
                     let size = mm(1.0);
                     let pos = c.designator_pos(fp) - Point::new(0, size / 2);
-                    g.shape(&Shape::Text {
+                    let text = Shape::Text {
                         pos,
                         text: c.designator.clone(),
                         size,
                         rotation: 0.0,
                         align: easypro_core::shape::Align::Center,
-                    });
+                    };
+                    if side == Side::Bottom {
+                        g.shape_bottom(&text);
+                    } else {
+                        g.shape(&text);
+                    }
                 }
             }
             for gr in pcb.graphics.iter().filter(|gr| gr.layer == layer) {
-                g.shape(&gr.shape);
+                if side == Side::Bottom {
+                    g.shape_bottom(&gr.shape);
+                } else {
+                    g.shape(&gr.shape);
+                }
             }
         }
         Artwork::Mask(side) => {
@@ -394,6 +430,25 @@ mod tests {
         assert_eq!(mm6(1_500_000), "1.500000");
         assert_eq!(mm6(-250_000), "-0.250000");
         assert_eq!(mm6(3), "0.000003");
+    }
+
+    #[test]
+    fn bottom_silk_text_is_mirrored() {
+        use easypro_core::geom::Point;
+        let mut top = GerberWriter::default();
+        let mut bottom = GerberWriter::default();
+        let t = Shape::Text {
+            pos: Point::ZERO,
+            text: "L".into(),
+            size: mm(1.0),
+            rotation: 0.0,
+            align: easypro_core::shape::Align::Left,
+        };
+        top.shape(&t);
+        bottom.shape_bottom(&t);
+        // The foot of an "L" points right on top and left underneath.
+        assert!(top.body.contains("X666667Y0D01"), "{}", top.body);
+        assert!(bottom.body.contains("X-666667Y0D01"), "{}", bottom.body);
     }
 
     #[test]
