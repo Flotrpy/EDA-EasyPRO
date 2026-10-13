@@ -601,6 +601,38 @@ pub fn port_bbox(port: &crate::schematic::NetPort) -> Rect {
         .fold(Rect::EMPTY, |r, it| r.union(prim_bbox(&it.prim)))
 }
 
+/// Wires and labels of `net` drawn bold in `color`, to lay over a sheet.
+pub fn net_highlight_items(sheet: &Sheet, conn: &Connectivity, net: &str, color: u32) -> Vec<Item> {
+    let mut v = Vec::new();
+    for w in &sheet.wires {
+        let on = conn.wire_net.get(&w.id).is_some_and(|&i| {
+            conn.nets[i].name == net || conn.nets[i].aliases.iter().any(|a| a == net)
+        });
+        if on {
+            v.push(Item {
+                prim: Prim::Path {
+                    pts: w.points.clone(),
+                    w: SCH_LINE * 3,
+                    closed: false,
+                },
+                color,
+                owner: None,
+            });
+        }
+    }
+    for l in sheet.labels.iter().filter(|l| l.name == net) {
+        v.push(Item {
+            prim: Prim::Disc {
+                c: l.pos,
+                r: mil(30.0),
+            },
+            color,
+            owner: None,
+        });
+    }
+    v
+}
+
 /// Everything on a schematic sheet.
 pub fn sheet_scene(
     sheet: &Sheet,
