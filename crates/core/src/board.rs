@@ -103,10 +103,100 @@ pub fn add_corner_holes(
     added
 }
 
+/// Summary numbers for the Board Info dialog.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct BoardStats {
+    pub width: i64,
+    pub height: i64,
+    /// Area inside the outline in mm².
+    pub area_mm2: f64,
+    pub components_top: usize,
+    pub components_bottom: usize,
+    pub smd_pads: usize,
+    pub tht_pads: usize,
+    pub vias: usize,
+    pub tracks: usize,
+    /// Total routed track length in mm.
+    pub track_length_mm: f64,
+    /// Every drilled hole: plated and non-plated pads plus vias.
+    pub holes: usize,
+    pub smallest_drill: Option<i64>,
+    pub nets: usize,
+    /// Routed length per net in mm, longest first.
+    pub net_lengths: Vec<(String, f64)>,
+}
+
+pub fn stats(pcb: &Pcb, lib: &Library) -> BoardStats {
+    use crate::library::PadKind;
+    let mut s = BoardStats::default();
+    if let Some(o) = pcb.outline() {
+        let r = Rect::from_points(o.iter().copied());
+        s.width = r.width();
+        s.height = r.height();
+        s.area_mm2 = crate::geom::polygon_area(&o).abs() / 1e12;
+    }
+    let drill = |d: i64, s: &mut BoardStats| {
+        s.holes += 1;
+        s.smallest_drill = Some(s.smallest_drill.map_or(d, |m: i64| m.min(d)));
+    };
+    for (_, pad, _) in pcb.pads(lib) {
+        match pad.kind {
+            PadKind::Smd => s.smd_pads += 1,
+            PadKind::Tht { drill: d } => {
+                s.tht_pads += 1;
+                drill(d, &mut s);
+            }
+            PadKind::Npth { drill: d } => drill(d, &mut s),
+        }
+    }
+    for c in &pcb.components {
+        match c.side {
+            Side::Top => s.components_top += 1,
+            Side::Bottom => s.components_bottom += 1,
+        }
+    }
+    for v in &pcb.vias {
+        drill(v.drill, &mut s);
+    }
+    s.vias = pcb.vias.len();
+    s.tracks = pcb.tracks.len();
+    let mut per_net: BTreeMap<String, f64> = BTreeMap::new();
+    for t in &pcb.tracks {
+        let l = t.length() / 1e6;
+        s.track_length_mm += l;
+        if !t.net.is_empty() {
+            *per_net.entry(t.net.clone()).or_default() += l;
+        }
+    }
+    s.nets = pcb.nets().len();
+    s.net_lengths = per_net.into_iter().collect();
+    s.net_lengths
+        .sort_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    s
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::units::mm;
+
+    #[test]
+    fn regulator_stats() {
+        let p = crate::examples::regulator();
+        let s = stats(&p.boards[0].pcb, &p.library);
+        assert_eq!((s.width, s.height), (mm(45.0), mm(22.0)));
+        // Rounded corners shave a little off 990 mm².
+        assert!(s.area_mm2 > 985.0 && s.area_mm2 < 990.0, "{}", s.area_mm2);
+        assert_eq!((s.components_top, s.components_bottom), (7, 0));
+        assert_eq!(s.tht_pads, 4);
+        assert_eq!(s.vias, 4);
+        assert_eq!(s.holes, 8);
+        assert_eq!(s.smallest_drill, Some(mm(0.3)));
+        assert_eq!(s.nets, 4);
+        assert_eq!(s.net_lengths[0].0, "+3V3");
+        let sum: f64 = s.net_lengths.iter().map(|n| n.1).sum();
+        assert!((sum - s.track_length_mm).abs() < 1e-9);
+    }
 
     #[test]
     fn rounded_outline_stays_inside() {
