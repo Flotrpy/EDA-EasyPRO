@@ -84,6 +84,9 @@ fn SelectProp(
     }
 }
 
+/// An edit to a board text: (text, height).
+type TextEdit = Box<dyn FnOnce(&mut String, &mut i64)>;
+
 fn rotations() -> Vec<(String, String)> {
     ["0", "90", "180", "270"]
         .iter()
@@ -407,7 +410,7 @@ fn pcb_props(app: &AppState, b: Id, sel: &[Id]) -> impl IntoView {
                 easypro_core::shape::Shape::Text { text, size, .. } => Some((text.clone(), *size)),
                 _ => None,
             };
-            let set_text = move |f: Box<dyn FnOnce(&mut String, &mut i64)>| {
+            let set_text = move |f: TextEdit| {
                 pcb_edit(&app, b, "Edit text", false, |p| {
                     if let Some(easypro_core::shape::Shape::Text { text, size, .. }) = p
                         .graphics
