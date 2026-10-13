@@ -36,8 +36,16 @@ pub fn edit_symbol(app: &AppState, id: &str, label: &str, f: impl FnOnce(&mut Sy
 }
 
 fn split(ids: &[Id]) -> (Vec<usize>, Vec<usize>) {
-    let mut pins: Vec<usize> = ids.iter().filter(|i| i.0 < GFX).map(|i| i.0 as usize).collect();
-    let mut gfx: Vec<usize> = ids.iter().filter(|i| i.0 >= GFX).map(|i| (i.0 - GFX) as usize).collect();
+    let mut pins: Vec<usize> = ids
+        .iter()
+        .filter(|i| i.0 < GFX)
+        .map(|i| i.0 as usize)
+        .collect();
+    let mut gfx: Vec<usize> = ids
+        .iter()
+        .filter(|i| i.0 >= GFX)
+        .map(|i| (i.0 - GFX) as usize)
+        .collect();
     pins.sort_unstable();
     gfx.sort_unstable();
     (pins, gfx)
@@ -82,18 +90,40 @@ pub fn rotate_items(app: &AppState, id: &str) {
 }
 
 fn next_pin_number(s: &Symbol) -> String {
-    let max = s.pins.iter().filter_map(|p| p.number.parse::<u32>().ok()).max().unwrap_or(0);
+    let max = s
+        .pins
+        .iter()
+        .filter_map(|p| p.number.parse::<u32>().ok())
+        .max()
+        .unwrap_or(0);
     (max + 1).to_string()
 }
 
 fn pin_items(pin: &Pin, owner: Id, color: u32, out: &mut Vec<Item>) {
-    out.push(Item { prim: Prim::Seg { a: pin.pos, b: pin.body_end(), w: W * 2 }, color, owner: Some(owner) });
-    out.push(Item { prim: Prim::Ring { c: pin.pos, r: mil(15.0), w: W }, color, owner: Some(owner) });
+    out.push(Item {
+        prim: Prim::Seg {
+            a: pin.pos,
+            b: pin.body_end(),
+            w: W * 2,
+        },
+        color,
+        owner: Some(owner),
+    });
+    out.push(Item {
+        prim: Prim::Ring {
+            c: pin.pos,
+            r: mil(15.0),
+            w: W,
+        },
+        color,
+        owner: Some(owner),
+    });
 }
 
 impl SymHandler {
     fn symbol(&self, app: &AppState, k: &Kind) -> Option<Symbol> {
-        app.project.with_untracked(|p| p.library.symbols.get(sid(k)).cloned())
+        app.project
+            .with_untracked(|p| p.library.symbols.get(sid(k)).cloned())
     }
 }
 
@@ -106,11 +136,35 @@ impl Handler for SymHandler {
         // Connection points and the origin.
         let mut marks = Vec::new();
         for p in &sym.pins {
-            marks.push(Item { prim: Prim::Ring { c: p.pos, r: mil(12.0), w: 0 }, color: rgba(0x2060ff, 255), owner: None });
+            marks.push(Item {
+                prim: Prim::Ring {
+                    c: p.pos,
+                    r: mil(12.0),
+                    w: 0,
+                },
+                color: rgba(0x2060ff, 255),
+                owner: None,
+            });
         }
         let o = mil(40.0);
-        marks.push(Item { prim: Prim::Seg { a: Point::new(-o, 0), b: Point::new(o, 0), w: 0 }, color: rgba(0x909090, 255), owner: None });
-        marks.push(Item { prim: Prim::Seg { a: Point::new(0, -o), b: Point::new(0, o), w: 0 }, color: rgba(0x909090, 255), owner: None });
+        marks.push(Item {
+            prim: Prim::Seg {
+                a: Point::new(-o, 0),
+                b: Point::new(o, 0),
+                w: 0,
+            },
+            color: rgba(0x909090, 255),
+            owner: None,
+        });
+        marks.push(Item {
+            prim: Prim::Seg {
+                a: Point::new(0, -o),
+                b: Point::new(0, o),
+                w: 0,
+            },
+            color: rgba(0x909090, 255),
+            owner: None,
+        });
         scene.layers.push((SceneLayer::Frame, marks));
         // Per-item geometry used only for picking highlights.
         let mut picks = Vec::new();
@@ -123,16 +177,43 @@ impl Handler for SymHandler {
         scene.layers.push((SceneLayer::Overlay, picks));
         let fit = sym.bbox().inflate(mil(300.0));
         Some(Built {
-            fit: if sym.pins.is_empty() && sym.graphics.is_empty() { Rect::around(Point::ZERO, mil(500.0), mil(500.0)) } else { fit },
-            scene: Scene { layers: scene.layers },
-            background: if dark { [0.118, 0.122, 0.133] } else { [1.0, 1.0, 1.0] },
+            fit: if sym.pins.is_empty() && sym.graphics.is_empty() {
+                Rect::around(Point::ZERO, mil(500.0), mil(500.0))
+            } else {
+                fit
+            },
+            scene: Scene {
+                layers: scene.layers,
+            },
+            background: if dark {
+                [0.118, 0.122, 0.133]
+            } else {
+                [1.0, 1.0, 1.0]
+            },
             grid: Some(GridStyle {
                 step_mm: app.settings.with_untracked(|s| s.sch_grid) as f64 / 1e6,
                 lines: app.settings.with_untracked(|s| s.grid_lines),
-                color: if dark { [0.3, 0.31, 0.34, 1.0] } else { [0.80, 0.82, 0.86, 1.0] },
-                major: if dark { [0.36, 0.37, 0.41, 1.0] } else { [0.70, 0.72, 0.77, 1.0] },
+                color: if dark {
+                    [0.3, 0.31, 0.34, 1.0]
+                } else {
+                    [0.80, 0.82, 0.86, 1.0]
+                },
+                major: if dark {
+                    [0.36, 0.37, 0.41, 1.0]
+                } else {
+                    [0.70, 0.72, 0.77, 1.0]
+                },
             }),
-            order: vec![LayerDraw { key: SceneLayer::Schematic, alpha: 1.0 }, LayerDraw { key: SceneLayer::Frame, alpha: 1.0 }],
+            order: vec![
+                LayerDraw {
+                    key: SceneLayer::Schematic,
+                    alpha: 1.0,
+                },
+                LayerDraw {
+                    key: SceneLayer::Frame,
+                    alpha: 1.0,
+                },
+            ],
         })
     }
 
@@ -147,14 +228,39 @@ impl Handler for SymHandler {
                 return Some(Id(i as u64));
             }
         }
-        s.graphics.iter().enumerate().rev().find(|(_, g)| g.distance_to(p) <= tol as f64).map(|(j, _)| Id(GFX + j as u64))
+        s.graphics
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, g)| g.distance_to(p) <= tol as f64)
+            .map(|(j, _)| Id(GFX + j as u64))
     }
 
     fn in_rect(&self, app: &AppState, k: &Kind, r: Rect, crossing: bool) -> Vec<Id> {
-        let Some(s) = self.symbol(app, k) else { return vec![] };
-        let test = |b: Rect| if crossing { r.intersects(&b) } else { r.contains_rect(&b) };
-        let mut out: Vec<Id> = s.pins.iter().enumerate().filter(|(_, p)| test(Rect::new(p.pos, p.body_end()))).map(|(i, _)| Id(i as u64)).collect();
-        out.extend(s.graphics.iter().enumerate().filter(|(_, g)| test(g.bbox())).map(|(j, _)| Id(GFX + j as u64)));
+        let Some(s) = self.symbol(app, k) else {
+            return vec![];
+        };
+        let test = |b: Rect| {
+            if crossing {
+                r.intersects(&b)
+            } else {
+                r.contains_rect(&b)
+            }
+        };
+        let mut out: Vec<Id> = s
+            .pins
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| test(Rect::new(p.pos, p.body_end())))
+            .map(|(i, _)| Id(i as u64))
+            .collect();
+        out.extend(
+            s.graphics
+                .iter()
+                .enumerate()
+                .filter(|(_, g)| test(g.bbox()))
+                .map(|(j, _)| Id(GFX + j as u64)),
+        );
         out
     }
 
@@ -174,14 +280,28 @@ impl Handler for SymHandler {
         }
     }
 
-    fn tool_down(&self, app: &AppState, k: &Kind, v: &mut View, _ev: &web_sys::PointerEvent) -> bool {
+    fn tool_down(
+        &self,
+        app: &AppState,
+        k: &Kind,
+        v: &mut View,
+        _ev: &web_sys::PointerEvent,
+    ) -> bool {
         let at = v.cursor;
         match app.tool.get_untracked() {
             Tool::Pin => {
                 let angle = app.place_rot.get_untracked();
                 edit_symbol(app, sid(k), "Add pin", |s| {
                     let n = next_pin_number(s);
-                    s.pins.push(Pin { number: n.clone(), name: n, pos: at, angle, length: mil(100.0), kind: PinKind::Passive, hide_name: false });
+                    s.pins.push(Pin {
+                        number: n.clone(),
+                        name: n,
+                        pos: at,
+                        angle,
+                        length: mil(100.0),
+                        kind: PinKind::Passive,
+                        hide_name: false,
+                    });
                 });
                 true
             }
@@ -209,9 +329,19 @@ impl Handler for SymHandler {
             return;
         }
         let shape = if tool == Tool::SymRect {
-            Shape::Rect { a, b, width: W, fill: false }
+            Shape::Rect {
+                a,
+                b,
+                width: W,
+                fill: false,
+            }
         } else {
-            Shape::Circle { center: a, radius: a.dist(b) as i64, width: W, fill: false }
+            Shape::Circle {
+                center: a,
+                radius: a.dist(b) as i64,
+                width: W,
+                fill: false,
+            }
         };
         edit_symbol(app, sid(k), "Draw shape", |s| s.graphics.push(shape));
     }
@@ -221,7 +351,12 @@ impl Handler for SymHandler {
             let mut pts = std::mem::take(&mut v.tool.points);
             pts.dedup();
             if pts.len() >= 2 {
-                edit_symbol(app, sid(k), "Draw line", |s| s.graphics.push(Shape::Polyline { points: pts, width: W }));
+                edit_symbol(app, sid(k), "Draw line", |s| {
+                    s.graphics.push(Shape::Polyline {
+                        points: pts,
+                        width: W,
+                    })
+                });
             }
         }
     }
@@ -232,20 +367,52 @@ impl Handler for SymHandler {
         match app.tool.get_untracked() {
             Tool::Pin => {
                 let angle = app.place_rot.get_untracked();
-                let pin = Pin { number: String::new(), name: String::new(), pos: v.cursor, angle, length: mil(100.0), kind: PinKind::Passive, hide_name: true };
+                let pin = Pin {
+                    number: String::new(),
+                    name: String::new(),
+                    pos: v.cursor,
+                    angle,
+                    length: mil(100.0),
+                    kind: PinKind::Passive,
+                    hide_name: true,
+                };
                 pin_items(&pin, Id(0), th.pin, &mut items);
             }
             Tool::SymLine if !v.tool.points.is_empty() => {
                 let mut pts = v.tool.points.clone();
                 pts.push(v.cursor);
-                items.push(Item { prim: Prim::Path { pts, w: W, closed: false }, color: th.body, owner: None });
+                items.push(Item {
+                    prim: Prim::Path {
+                        pts,
+                        w: W,
+                        closed: false,
+                    },
+                    color: th.body,
+                    owner: None,
+                });
             }
             Tool::SymRect if v.tool.points.len() == 1 => {
-                items.push(Item { prim: Prim::Path { pts: Rect::new(v.tool.points[0], v.cursor).corners().to_vec(), w: W, closed: true }, color: th.body, owner: None });
+                items.push(Item {
+                    prim: Prim::Path {
+                        pts: Rect::new(v.tool.points[0], v.cursor).corners().to_vec(),
+                        w: W,
+                        closed: true,
+                    },
+                    color: th.body,
+                    owner: None,
+                });
             }
             Tool::SymCircle if v.tool.points.len() == 1 => {
                 let c = v.tool.points[0];
-                items.push(Item { prim: Prim::Ring { c, r: c.dist(v.cursor) as i64, w: W }, color: th.body, owner: None });
+                items.push(Item {
+                    prim: Prim::Ring {
+                        c,
+                        r: c.dist(v.cursor) as i64,
+                        w: W,
+                    },
+                    color: th.body,
+                    owner: None,
+                });
             }
             _ => {}
         }

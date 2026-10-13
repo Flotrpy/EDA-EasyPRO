@@ -19,7 +19,10 @@ const LAST_KEY: &str = "easypro.last";
 fn typing_target(ev: &web_sys::KeyboardEvent) -> bool {
     ev.target()
         .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
-        .map(|e| matches!(e.tag_name().as_str(), "INPUT" | "TEXTAREA" | "SELECT") || e.has_attribute("contenteditable"))
+        .map(|e| {
+            matches!(e.tag_name().as_str(), "INPUT" | "TEXTAREA" | "SELECT")
+                || e.has_attribute("contenteditable")
+        })
         .unwrap_or(false)
 }
 
@@ -29,7 +32,12 @@ fn install_keyboard(app: AppState) {
             return;
         }
         let ch = commands::chord(&ev);
-        if typing_target(&ev) && !matches!(ch.as_str(), "Escape" | "Ctrl+S" | "Ctrl+K" | "Ctrl+Z" | "Ctrl+Y") {
+        if typing_target(&ev)
+            && !matches!(
+                ch.as_str(),
+                "Escape" | "Ctrl+S" | "Ctrl+K" | "Ctrl+Z" | "Ctrl+Y"
+            )
+        {
             return;
         }
         if typing_target(&ev) && matches!(ch.as_str(), "Ctrl+Z" | "Ctrl+Y") {
@@ -42,8 +50,16 @@ fn install_keyboard(app: AppState) {
             }
             return;
         }
-        let key = if ev.key().len() == 1 { ev.key().to_uppercase() } else { ev.key() };
-        if !ev.ctrl_key() && !ev.meta_key() && !ev.alt_key() && editor::canvas::offer_key(&app, &key) {
+        let key = if ev.key().len() == 1 {
+            ev.key().to_uppercase()
+        } else {
+            ev.key()
+        };
+        if !ev.ctrl_key()
+            && !ev.meta_key()
+            && !ev.alt_key()
+            && editor::canvas::offer_key(&app, &key)
+        {
             ev.prevent_default();
             return;
         }
@@ -97,11 +113,20 @@ fn install_live_drc(app: AppState) {
                     return;
                 }
                 let unit = app.unit();
-                let issues = app.project.with_untracked(|p| p.board(board).map(|b| easypro_core::drc::run(&b.pcb, &p.library, unit)).unwrap_or_default());
+                let issues = app.project.with_untracked(|p| {
+                    p.board(board)
+                        .map(|b| easypro_core::drc::run(&b.pcb, &p.library, unit))
+                        .unwrap_or_default()
+                });
                 // Unrouted nets are expected while laying out; keep live markers to real errors.
-                let errors: Vec<_> = issues.into_iter().filter(|i| i.severity == easypro_core::check::Severity::Error).collect();
+                let errors: Vec<_> = issues
+                    .into_iter()
+                    .filter(|i| i.severity == easypro_core::check::Severity::Error)
+                    .collect();
                 let title = format!("Live DRC: {} error(s)", errors.len());
-                if app.issues_title.get_untracked().starts_with("Live DRC") || app.issues.with_untracked(|i| i.is_empty()) {
+                if app.issues_title.get_untracked().starts_with("Live DRC")
+                    || app.issues.with_untracked(|i| i.is_empty())
+                {
                     app.issues_title.set(title);
                     app.issues.set(errors);
                 }
@@ -120,8 +145,20 @@ fn install_cross_probe(app: AppState) {
         let cross = app.project.with_untracked(|p| {
             let Some(bd) = p.board(b) else { return vec![] };
             match tab {
-                Tab::Schematic { .. } => bd.pcb.components.iter().filter(|c| c.link.is_some_and(|l| sel.contains(&l))).map(|c| c.id).collect(),
-                Tab::Pcb { .. } => bd.pcb.components.iter().filter(|c| sel.contains(&c.id)).filter_map(|c| c.link).collect(),
+                Tab::Schematic { .. } => bd
+                    .pcb
+                    .components
+                    .iter()
+                    .filter(|c| c.link.is_some_and(|l| sel.contains(&l)))
+                    .map(|c| c.id)
+                    .collect(),
+                Tab::Pcb { .. } => bd
+                    .pcb
+                    .components
+                    .iter()
+                    .filter(|c| sel.contains(&c.id))
+                    .filter_map(|c| c.link)
+                    .collect(),
                 _ => vec![],
             }
         });
@@ -207,7 +244,10 @@ fn App() -> impl IntoView {
 
 fn main() {
     console_error_panic_hook::set_once();
-    if let Some(boot) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.get_element_by_id("boot")) {
+    if let Some(boot) = web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.get_element_by_id("boot"))
+    {
         boot.remove();
     }
     js::register_sw();

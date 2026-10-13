@@ -8,7 +8,10 @@ pub fn StatusBar() -> impl IntoView {
     let app = use_app();
     let pos = move || {
         let u = app.settings.with(|s| s.unit);
-        app.cursor.get().map(|p| format!("X {}  Y {} {}", u.format(p.x), u.format(p.y), u.label())).unwrap_or_default()
+        app.cursor
+            .get()
+            .map(|p| format!("X {}  Y {} {}", u.format(p.x), u.format(p.y), u.label()))
+            .unwrap_or_default()
     };
     let grid = move || {
         let u = app.settings.with(|s| s.unit);

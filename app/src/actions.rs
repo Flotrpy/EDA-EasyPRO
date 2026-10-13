@@ -16,13 +16,29 @@ use leptos::task::spawn_local;
 // ------------------------------------------------------------ helpers
 
 pub fn board_id(app: &AppState) -> Option<Id> {
-    app.tab_untracked().board().or_else(|| app.project.with_untracked(|p| p.boards.first().map(|b| b.id)))
+    app.tab_untracked().board().or_else(|| {
+        app.project
+            .with_untracked(|p| p.boards.first().map(|b| b.id))
+    })
 }
 
 fn file_base(app: &AppState) -> String {
     let name = app.project.with_untracked(|p| p.name.clone());
-    let s: String = name.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
-    if s.is_empty() { "project".into() } else { s }
+    let s: String = name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if s.is_empty() {
+        "project".into()
+    } else {
+        s
+    }
 }
 
 fn selection_center(rects: impl Iterator<Item = Rect>) -> Option<Point> {
@@ -37,7 +53,11 @@ pub fn new_project(app: &AppState) {
 }
 
 pub fn create_project(app: &AppState, name: &str) {
-    let mut p = Project::new(if name.trim().is_empty() { "Untitled" } else { name.trim() });
+    let mut p = Project::new(if name.trim().is_empty() {
+        "Untitled"
+    } else {
+        name.trim()
+    });
     p.created = js::now_iso();
     let key = storage::new_key();
     app.load_project(p, key.clone());
@@ -61,7 +81,9 @@ pub fn persist(app: &AppState) {
 pub fn open_project(app: &AppState) {
     let app = *app;
     spawn_local(async move {
-        let Some((name, text)) = storage::pick_file(".json,application/json").await else { return };
+        let Some((name, text)) = storage::pick_file(".json,application/json").await else {
+            return;
+        };
         match Project::from_json(&text) {
             Ok(p) => {
                 let pname = p.name.clone();
@@ -134,16 +156,23 @@ fn unique_id(existing: impl Fn(&str) -> bool, base: &str) -> String {
     if !existing(base) {
         return base.to_string();
     }
-    (2..).map(|n| format!("{base}-{n}")).find(|c| !existing(c)).unwrap()
+    (2..)
+        .map(|n| format!("{base}-{n}"))
+        .find(|c| !existing(c))
+        .unwrap()
 }
 
 pub fn import_kicad_footprint(app: &AppState) {
     let app = *app;
     spawn_local(async move {
-        let Some((name, text)) = storage::pick_file(".kicad_mod").await else { return };
+        let Some((name, text)) = storage::pick_file(".kicad_mod").await else {
+            return;
+        };
         match easypro_core::kicad::import_footprint(&text) {
             Ok(mut f) => {
-                f.id = app.project.with_untracked(|p| unique_id(|i| p.library.footprints.contains_key(i), &f.id));
+                f.id = app
+                    .project
+                    .with_untracked(|p| unique_id(|i| p.library.footprints.contains_key(i), &f.id));
                 let id = f.id.clone();
                 let pads = f.pads.len();
                 app.edit("Import footprint", |p| p.library.add_footprint(f));
@@ -158,7 +187,9 @@ pub fn import_kicad_footprint(app: &AppState) {
 pub fn import_kicad_symbols(app: &AppState) {
     let app = *app;
     spawn_local(async move {
-        let Some((name, text)) = storage::pick_file(".kicad_sym").await else { return };
+        let Some((name, text)) = storage::pick_file(".kicad_sym").await else {
+            return;
+        };
         match easypro_core::kicad::import_symbols(&text) {
             Ok(syms) => {
                 let n = syms.len();
@@ -203,7 +234,9 @@ pub fn copy(app: &AppState) {
     let clip = app.project.with_untracked(|p| {
         let board = p.board(b)?;
         Some(match app.tab_untracked() {
-            Tab::Schematic { sheet, .. } => Clip::Sch(edit::sch_copy(board.schematic.sheets.get(sheet)?, &sel)),
+            Tab::Schematic { sheet, .. } => {
+                Clip::Sch(edit::sch_copy(board.schematic.sheets.get(sheet)?, &sel))
+            }
             Tab::Pcb { .. } => Clip::Pcb(edit::pcb_copy(&board.pcb, &sel)),
             _ => return None,
         })
@@ -246,7 +279,10 @@ fn paste_offset(app: &AppState, offset: Option<Point>) {
                     _ => Point::new(mil(500.0), -mil(500.0)),
                 });
                 let mut ids = std::mem::take(&mut p.ids);
-                if let Some(s) = p.board_mut(b).and_then(|bd| bd.schematic.sheets.get_mut(sheet)) {
+                if let Some(s) = p
+                    .board_mut(b)
+                    .and_then(|bd| bd.schematic.sheets.get_mut(sheet))
+                {
                     new_ids = edit::sch_paste(s, &frag, d, &mut ids);
                 }
                 p.ids = ids;
@@ -263,7 +299,8 @@ fn paste_offset(app: &AppState, offset: Option<Point>) {
             });
         }
         _ => {
-            app.status.set("Clipboard content does not fit this editor".into());
+            app.status
+                .set("Clipboard content does not fit this editor".into());
             return;
         }
     }
@@ -322,9 +359,27 @@ pub fn select_all(app: &AppState) {
                 .schematic
                 .sheets
                 .get(sheet)
-                .map(|s| easypro_core::pick::sch_in_rect(s, &p.library, Rect::new(Point::new(-i64::MAX / 4, -i64::MAX / 4), Point::new(i64::MAX / 4, i64::MAX / 4)), true))
+                .map(|s| {
+                    easypro_core::pick::sch_in_rect(
+                        s,
+                        &p.library,
+                        Rect::new(
+                            Point::new(-i64::MAX / 4, -i64::MAX / 4),
+                            Point::new(i64::MAX / 4, i64::MAX / 4),
+                        ),
+                        true,
+                    )
+                })
                 .unwrap_or_default(),
-            Tab::Pcb { .. } => easypro_core::pick::pcb_in_rect(&bd.pcb, &p.library, Rect::new(Point::new(-i64::MAX / 4, -i64::MAX / 4), Point::new(i64::MAX / 4, i64::MAX / 4)), true),
+            Tab::Pcb { .. } => easypro_core::pick::pcb_in_rect(
+                &bd.pcb,
+                &p.library,
+                Rect::new(
+                    Point::new(-i64::MAX / 4, -i64::MAX / 4),
+                    Point::new(i64::MAX / 4, i64::MAX / 4),
+                ),
+                true,
+            ),
             _ => vec![],
         }
     });
@@ -333,7 +388,8 @@ pub fn select_all(app: &AppState) {
 
 pub fn rotate(app: &AppState) {
     if matches!(app.tool.get_untracked(), Tool::Place(_) | Tool::Pin) {
-        app.place_rot.update(|r| *r = easypro_core::geom::normalize_angle(*r + 90.0));
+        app.place_rot
+            .update(|r| *r = easypro_core::geom::normalize_angle(*r + 90.0));
         return;
     }
     match app.tab_untracked() {
@@ -348,16 +404,28 @@ pub fn rotate(app: &AppState) {
             Tab::Schematic { sheet, .. } => {
                 let s = bd.schematic.sheets.get_mut(sheet)?;
                 let grid = mil(50.0);
-                let c = selection_center(sel.iter().filter_map(|id| easypro_core::pick::sch_bbox(s, &lib, *id)))?.snap(grid);
+                let c = selection_center(
+                    sel.iter()
+                        .filter_map(|id| easypro_core::pick::sch_bbox(s, &lib, *id)),
+                )?
+                .snap(grid);
                 edit::sch_rotate(s, sel, c, 90.0);
                 // Keep pins on grid after rotating about a snapped centre.
                 Some(())
             }
             Tab::Pcb { .. } => {
                 let c = if sel.len() == 1 {
-                    bd.pcb.component(sel[0]).map(|c| c.pos).or_else(|| selection_center(sel.iter().filter_map(|id| easypro_core::pick::pcb_bbox(&bd.pcb, &lib, *id))))?
+                    bd.pcb.component(sel[0]).map(|c| c.pos).or_else(|| {
+                        selection_center(
+                            sel.iter()
+                                .filter_map(|id| easypro_core::pick::pcb_bbox(&bd.pcb, &lib, *id)),
+                        )
+                    })?
                 } else {
-                    selection_center(sel.iter().filter_map(|id| easypro_core::pick::pcb_bbox(&bd.pcb, &lib, *id)))?
+                    selection_center(
+                        sel.iter()
+                            .filter_map(|id| easypro_core::pick::pcb_bbox(&bd.pcb, &lib, *id)),
+                    )?
                 };
                 edit::pcb_rotate(&mut bd.pcb, sel, c, 90.0);
                 Some(())
@@ -367,7 +435,11 @@ pub fn rotate(app: &AppState) {
     });
 }
 
-fn transform_selection(app: &AppState, label: &str, f: impl FnOnce(&mut Project, Id, Tab, &[Id]) -> Option<()>) {
+fn transform_selection(
+    app: &AppState,
+    label: &str,
+    f: impl FnOnce(&mut Project, Id, Tab, &[Id]) -> Option<()>,
+) {
     let sel = app.selection.get_untracked();
     if sel.is_empty() {
         return;
@@ -384,9 +456,15 @@ pub fn mirror(app: &AppState) {
     }
     transform_selection(app, "Mirror", |p, b, tab, sel| {
         let lib = p.library.clone();
-        let Tab::Schematic { sheet, .. } = tab else { return None };
+        let Tab::Schematic { sheet, .. } = tab else {
+            return None;
+        };
         let s = p.board_mut(b)?.schematic.sheets.get_mut(sheet)?;
-        let c = selection_center(sel.iter().filter_map(|id| easypro_core::pick::sch_bbox(s, &lib, *id)))?.snap(mil(50.0));
+        let c = selection_center(
+            sel.iter()
+                .filter_map(|id| easypro_core::pick::sch_bbox(s, &lib, *id)),
+        )?
+        .snap(mil(50.0));
         edit::sch_mirror(s, sel, c);
         Some(())
     });
@@ -404,7 +482,8 @@ pub fn escape(app: &AppState) {
         app.palette.set(false);
     } else if app.dialog.get_untracked().is_some() {
         app.dialog.set(None);
-    } else if app.menu_open.get_untracked().is_some() || app.context_menu.get_untracked().is_some() {
+    } else if app.menu_open.get_untracked().is_some() || app.context_menu.get_untracked().is_some()
+    {
         app.menu_open.set(None);
         app.context_menu.set(None);
     } else if app.tool.get_untracked() != Tool::Select {
@@ -454,14 +533,22 @@ pub fn toggle_grid_style(app: &AppState) {
 }
 
 pub fn toggle_units(app: &AppState) {
-    update_settings(app, |s| s.unit = if s.unit == Unit::Mm { Unit::Mil } else { Unit::Mm });
+    update_settings(app, |s| {
+        s.unit = if s.unit == Unit::Mm {
+            Unit::Mil
+        } else {
+            Unit::Mm
+        }
+    });
     let u = app.settings.with_untracked(|s| s.unit);
     app.status.set(format!("Units: {}", u.label()));
 }
 
 pub fn toggle_theme(app: &AppState) {
     let dark = app.dark.get_untracked();
-    update_settings(app, |s| s.theme = if dark { Theme::Light } else { Theme::Dark });
+    update_settings(app, |s| {
+        s.theme = if dark { Theme::Light } else { Theme::Dark }
+    });
 }
 
 pub fn open_3d(app: &AppState) {
@@ -589,7 +676,9 @@ pub fn tool_fp_circle(app: &AppState) {
 pub fn place_device(app: &AppState, device: &str) {
     // Copy the part into the project library first so the file is self-contained.
     let lib = easypro_core::builtin::library();
-    let in_project = app.project.with_untracked(|p| p.library.devices.contains_key(device));
+    let in_project = app
+        .project
+        .with_untracked(|p| p.library.devices.contains_key(device));
     if !in_project {
         if !lib.devices.contains_key(device) {
             return;
@@ -616,9 +705,17 @@ pub fn layer_bottom(app: &AppState) {
 
 pub fn layer_next(app: &AppState) {
     let Some(b) = board_id(app) else { return };
-    let stack = app.project.with_untracked(|p| p.board(b).map(|bd| bd.pcb.copper_stack()).unwrap_or_default());
+    let stack = app.project.with_untracked(|p| {
+        p.board(b)
+            .map(|bd| bd.pcb.copper_stack())
+            .unwrap_or_default()
+    });
     let cur = app.active_layer.get_untracked();
-    let i = stack.iter().position(|l| *l == cur).map(|i| (i + 1) % stack.len()).unwrap_or(0);
+    let i = stack
+        .iter()
+        .position(|l| *l == cur)
+        .map(|i| (i + 1) % stack.len())
+        .unwrap_or(0);
     if let Some(l) = stack.get(i) {
         app.active_layer.set(*l);
         app.status.set(format!("Active layer: {}", l.name()));
@@ -656,31 +753,53 @@ fn annotate_impl(app: &AppState, reset: bool) {
         }
         n > 0
     });
-    app.ok(if n == 0 { "All parts are already annotated".to_string() } else { format!("Annotated {n} part(s)") });
+    app.ok(if n == 0 {
+        "All parts are already annotated".to_string()
+    } else {
+        format!("Annotated {n} part(s)")
+    });
 }
 
 pub fn erc(app: &AppState) {
     let Some(b) = board_id(app) else { return };
-    let issues = app.project.with_untracked(|p| p.board(b).map(|bd| easypro_core::erc::run(&bd.schematic, &p.library)).unwrap_or_default());
+    let issues = app.project.with_untracked(|p| {
+        p.board(b)
+            .map(|bd| easypro_core::erc::run(&bd.schematic, &p.library))
+            .unwrap_or_default()
+    });
     report_issues(app, "ERC", issues);
 }
 
 pub fn drc(app: &AppState) {
     let Some(b) = board_id(app) else { return };
     let unit = app.unit();
-    let issues = app.project.with_untracked(|p| p.board(b).map(|bd| easypro_core::drc::run(&bd.pcb, &p.library, unit)).unwrap_or_default());
+    let issues = app.project.with_untracked(|p| {
+        p.board(b)
+            .map(|bd| easypro_core::drc::run(&bd.pcb, &p.library, unit))
+            .unwrap_or_default()
+    });
     report_issues(app, "DRC", issues);
 }
 
 pub fn report_issues(app: &AppState, what: &str, issues: Vec<easypro_core::check::Issue>) {
     use easypro_core::check::Severity;
-    let errors = issues.iter().filter(|i| i.severity == Severity::Error).count();
-    let warnings = issues.iter().filter(|i| i.severity == Severity::Warning).count();
+    let errors = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Error)
+        .count();
+    let warnings = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Warning)
+        .count();
     let summary = format!("{what}: {errors} error(s), {warnings} warning(s)");
     if errors > 0 {
         app.warn(summary.clone());
     } else {
-        app.ok(if issues.is_empty() { format!("{what}: no problems found") } else { summary.clone() });
+        app.ok(if issues.is_empty() {
+            format!("{what}: no problems found")
+        } else {
+            summary.clone()
+        });
     }
     app.issues_title.set(summary);
     app.issues.set(issues);
@@ -736,9 +855,15 @@ pub fn add_sheet(app: &AppState) {
     let mut idx = 0;
     app.edit("Add sheet", |p| {
         p.add_sheet(b);
-        idx = p.board(b).map(|bd| bd.schematic.sheets.len() - 1).unwrap_or(0);
+        idx = p
+            .board(b)
+            .map(|bd| bd.schematic.sheets.len() - 1)
+            .unwrap_or(0);
     });
-    app.open(Tab::Schematic { board: b, sheet: idx });
+    app.open(Tab::Schematic {
+        board: b,
+        sheet: idx,
+    });
 }
 
 pub fn add_board(app: &AppState) {
@@ -757,7 +882,9 @@ pub fn add_board(app: &AppState) {
 pub fn new_device(app: &AppState) {
     let mut id = String::new();
     app.edit("New device", |p| {
-        let n = (1..).find(|n| !p.library.devices.contains_key(&format!("dev:custom-{n}"))).unwrap();
+        let n = (1..)
+            .find(|n| !p.library.devices.contains_key(&format!("dev:custom-{n}")))
+            .unwrap();
         id = format!("dev:custom-{n}");
         let sym_id = format!("sym:custom-{n}");
         let fp_id = format!("fp:custom-{n}");
@@ -767,8 +894,16 @@ pub fn new_device(app: &AppState) {
             &[("1", "IN", easypro_core::library::PinKind::Input)],
             &[("2", "OUT", easypro_core::library::PinKind::Output)],
         );
-        let mut fp = Footprint { id: fp_id.clone(), name: format!("Custom {n}"), ..Default::default() };
-        fp.pads = easypro_core::builtin::footprints::sot23().pads.into_iter().take(2).collect();
+        let mut fp = Footprint {
+            id: fp_id.clone(),
+            name: format!("Custom {n}"),
+            ..Default::default()
+        };
+        fp.pads = easypro_core::builtin::footprints::sot23()
+            .pads
+            .into_iter()
+            .take(2)
+            .collect();
         p.library.add_symbol(Symbol { ..sym });
         p.library.add_footprint(fp);
         p.library.add_device(Device {
@@ -806,15 +941,25 @@ pub fn fabrication(app: &AppState) {
     app.dialog.set(Some(Dialog::Fabrication));
 }
 
-fn with_board<T>(app: &AppState, f: impl FnOnce(&easypro_core::project::Board, &easypro_core::library::Library) -> T) -> Option<T> {
+fn with_board<T>(
+    app: &AppState,
+    f: impl FnOnce(&easypro_core::project::Board, &easypro_core::library::Library) -> T,
+) -> Option<T> {
     let b = board_id(app)?;
-    app.project.with_untracked(|p| p.board(b).map(|bd| f(bd, &p.library)))
+    app.project
+        .with_untracked(|p| p.board(b).map(|bd| f(bd, &p.library)))
 }
 
 pub fn export_bom(app: &AppState) {
     use easypro_export::bom::*;
-    if let Some(csv) = with_board(app, |b, lib| bom_csv(&lines(&b.schematic, lib), BomStyle::Generic)) {
-        js::download(&format!("{}-BOM.csv", file_base(app)), csv.as_bytes(), "text/csv");
+    if let Some(csv) = with_board(app, |b, lib| {
+        bom_csv(&lines(&b.schematic, lib), BomStyle::Generic)
+    }) {
+        js::download(
+            &format!("{}-BOM.csv", file_base(app)),
+            csv.as_bytes(),
+            "text/csv",
+        );
         app.ok("BOM exported");
     }
 }
@@ -822,14 +967,20 @@ pub fn export_bom(app: &AppState) {
 pub fn export_cpl(app: &AppState) {
     use easypro_export::bom::*;
     if let Some(csv) = with_board(app, |b, lib| cpl_csv(&b.pcb, lib, BomStyle::Generic)) {
-        js::download(&format!("{}-CPL.csv", file_base(app)), csv.as_bytes(), "text/csv");
+        js::download(
+            &format!("{}-CPL.csv", file_base(app)),
+            csv.as_bytes(),
+            "text/csv",
+        );
         app.ok("Pick-and-place file exported");
     }
 }
 
 pub fn export_netlist(app: &AppState) {
     let base = file_base(app);
-    if let Some(net) = with_board(app, |b, lib| easypro_export::netlist::kicad_netlist(&b.schematic, lib, &base)) {
+    if let Some(net) = with_board(app, |b, lib| {
+        easypro_export::netlist::kicad_netlist(&b.schematic, lib, &base)
+    }) {
         js::download(&format!("{base}.net"), net.as_bytes(), "text/plain");
         app.ok("KiCad netlist exported");
     }
@@ -847,23 +998,43 @@ pub fn export_svg(app: &AppState) {
                 let bd = p.board(board)?;
                 let s = bd.schematic.sheets.get(sheet)?;
                 let conn = easypro_core::netlist::connectivity(&bd.schematic, &p.library);
-                let theme = if dark { SchTheme::DARK } else { SchTheme::LIGHT };
+                let theme = if dark {
+                    SchTheme::DARK
+                } else {
+                    SchTheme::LIGHT
+                };
                 let scene = sheet_scene(s, &p.library, Some((&conn, sheet)), &theme, &p.name);
-                Some((format!("{base}-{}.svg", s.name), scene_to_svg(&scene, Some(if dark { 0x1e1f22 } else { 0xffffff }), 0)))
+                Some((
+                    format!("{base}-{}.svg", s.name),
+                    scene_to_svg(&scene, Some(if dark { 0x1e1f22 } else { 0xffffff }), 0),
+                ))
             }
             Tab::Pcb { board } => {
                 let bd = p.board(board)?;
-                let style = PcbStyle { hidden, highlight_net: None, show_ratsnest: false };
+                let style = PcbStyle {
+                    hidden,
+                    highlight_net: None,
+                    show_ratsnest: false,
+                };
                 let scene = pcb_scene(&bd.pcb, &p.library, &style, &[]);
-                Some((format!("{base}-pcb.svg"), scene_to_svg(&scene, Some(0x101010), mm(2.0))))
+                Some((
+                    format!("{base}-pcb.svg"),
+                    scene_to_svg(&scene, Some(0x101010), mm(2.0)),
+                ))
             }
             Tab::Footprint { id } => {
                 let f = p.library.footprints.get(&id)?;
-                Some((format!("{}.svg", f.name), scene_to_svg(&footprint_scene(f), Some(0x101010), mm(1.0))))
+                Some((
+                    format!("{}.svg", f.name),
+                    scene_to_svg(&footprint_scene(f), Some(0x101010), mm(1.0)),
+                ))
             }
             Tab::Symbol { id } => {
                 let s = p.library.symbols.get(&id)?;
-                Some((format!("{}.svg", s.name), scene_to_svg(&symbol_scene(s, &SchTheme::LIGHT), Some(0xffffff), mm(2.0))))
+                Some((
+                    format!("{}.svg", s.name),
+                    scene_to_svg(&symbol_scene(s, &SchTheme::LIGHT), Some(0xffffff), mm(2.0)),
+                ))
             }
             _ => None,
         }
@@ -876,7 +1047,11 @@ pub fn export_svg(app: &AppState) {
 
 pub fn export_json(app: &AppState) {
     let json = app.project.with_untracked(|p| p.to_json());
-    js::download(&format!("{}.{FILE_EXTENSION}", file_base(app)), json.as_bytes(), "application/json");
+    js::download(
+        &format!("{}.{FILE_EXTENSION}", file_base(app)),
+        json.as_bytes(),
+        "application/json",
+    );
 }
 
 // ------------------------------------------------------------ settings & help

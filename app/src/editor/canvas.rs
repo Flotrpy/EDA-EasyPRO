@@ -27,7 +27,10 @@ pub enum Kind {
 impl Kind {
     pub fn from_tab(t: &Tab) -> Option<Kind> {
         Some(match t {
-            Tab::Schematic { board, sheet } => Kind::Sch { board: *board, sheet: *sheet },
+            Tab::Schematic { board, sheet } => Kind::Sch {
+                board: *board,
+                sheet: *sheet,
+            },
             Tab::Pcb { board } => Kind::Pcb { board: *board },
             Tab::Symbol { id } => Kind::Sym(id.clone()),
             Tab::Footprint { id } => Kind::Fp(id.clone()),
@@ -58,9 +61,20 @@ pub struct ToolState {
 #[derive(Clone, Debug)]
 pub enum Gesture {
     None,
-    Pan { last: (f64, f64), moved: f64 },
-    Drag { start: Point, before: Box<Project>, ids: Vec<Id>, delta: Point },
-    Box { a: (f64, f64), b: (f64, f64) },
+    Pan {
+        last: (f64, f64),
+        moved: f64,
+    },
+    Drag {
+        start: Point,
+        before: Box<Project>,
+        ids: Vec<Id>,
+        delta: Point,
+    },
+    Box {
+        a: (f64, f64),
+        b: (f64, f64),
+    },
     Tool,
 }
 
@@ -69,7 +83,14 @@ pub struct View {
     pub camera: Camera,
     pub dpr: f64,
     pub built: Option<Built>,
-    pub scene_key: Option<(u64, bool, Vec<easypro_core::layer::Layer>, Option<String>, easypro_core::layer::Layer, bool)>,
+    pub scene_key: Option<(
+        u64,
+        bool,
+        Vec<easypro_core::layer::Layer>,
+        Option<String>,
+        easypro_core::layer::Layer,
+        bool,
+    )>,
     pub gesture: Gesture,
     pub tool: ToolState,
     /// Snapped cursor in world nm.
@@ -95,7 +116,13 @@ pub trait Handler {
     fn in_rect(&self, app: &AppState, k: &Kind, r: Rect, crossing: bool) -> Vec<Id>;
     fn apply_move(&self, p: &mut Project, k: &Kind, ids: &[Id], d: Point);
     /// Tool press. Return true when handled.
-    fn tool_down(&self, _app: &AppState, _k: &Kind, _v: &mut View, _ev: &web_sys::PointerEvent) -> bool {
+    fn tool_down(
+        &self,
+        _app: &AppState,
+        _k: &Kind,
+        _v: &mut View,
+        _ev: &web_sys::PointerEvent,
+    ) -> bool {
         false
     }
     fn tool_move(&self, _app: &AppState, _k: &Kind, _v: &mut View) {}
@@ -126,7 +153,9 @@ thread_local! {
 /// Offer a key to the active editor's tool (routing shortcuts etc.).
 pub fn offer_key(app: &AppState, key: &str) -> bool {
     let active = ACTIVE.with(|a| a.borrow().clone());
-    let Some((k, view)) = active else { return false };
+    let Some((k, view)) = active else {
+        return false;
+    };
     if Kind::from_tab(&app.tab_untracked()).as_ref() != Some(&k) {
         return false;
     }
@@ -152,7 +181,16 @@ pub const SEL: u32 = rgba(0x3aa0ff, 255);
 pub const HOVER: u32 = rgba(0x9fd0ff, 150);
 pub const CROSS: u32 = rgba(0xffb030, 220);
 
-fn scene_key(app: &AppState) -> (u64, bool, Vec<easypro_core::layer::Layer>, Option<String>, easypro_core::layer::Layer, bool) {
+fn scene_key(
+    app: &AppState,
+) -> (
+    u64,
+    bool,
+    Vec<easypro_core::layer::Layer>,
+    Option<String>,
+    easypro_core::layer::Layer,
+    bool,
+) {
     (
         app.rev.get_untracked(),
         app.dark.get_untracked(),
@@ -175,7 +213,14 @@ fn render(app: &AppState, k: &Kind, v: &mut View) {
             }
             v.renderer.set_scene(&b.scene);
             if !v.fitted {
-                v.camera.fit(if b.fit.is_empty() { Rect::around(Point::ZERO, 20_000_000, 20_000_000) } else { b.fit }, 40.0);
+                v.camera.fit(
+                    if b.fit.is_empty() {
+                        Rect::around(Point::ZERO, 20_000_000, 20_000_000)
+                    } else {
+                        b.fit
+                    },
+                    40.0,
+                );
                 v.fitted = true;
             }
             v.built = Some(b);
@@ -186,7 +231,8 @@ fn render(app: &AppState, k: &Kind, v: &mut View) {
     overlay(app, k, v, &mut m);
     v.renderer.set_overlay(&m);
     if let Some(b) = &v.built {
-        v.renderer.draw(&v.camera, b.background, b.grid, &b.order, v.dpr);
+        v.renderer
+            .draw(&v.camera, b.background, b.grid, &b.order, v.dpr);
     }
 }
 
@@ -219,10 +265,43 @@ fn overlay(app: &AppState, k: &Kind, v: &View, m: &mut Mesh) {
         let pb = v.camera.to_world_nm(b.0, b.1);
         let r = Rect::new(pa, pb);
         let crossing = b.0 < a.0;
-        let color = if crossing { rgba(0x40c070, 60) } else { rgba(0x3a90ff, 50) };
-        let edge = if crossing { rgba(0x40c070, 220) } else { rgba(0x3a90ff, 220) };
-        item_colored(m, &frame, &Item { prim: Prim::Poly { outer: r.corners().to_vec(), holes: vec![] }, color, owner: None }, color);
-        item_colored(m, &frame, &Item { prim: Prim::Path { pts: r.corners().to_vec(), w: 0, closed: true }, color: edge, owner: None }, edge);
+        let color = if crossing {
+            rgba(0x40c070, 60)
+        } else {
+            rgba(0x3a90ff, 50)
+        };
+        let edge = if crossing {
+            rgba(0x40c070, 220)
+        } else {
+            rgba(0x3a90ff, 220)
+        };
+        item_colored(
+            m,
+            &frame,
+            &Item {
+                prim: Prim::Poly {
+                    outer: r.corners().to_vec(),
+                    holes: vec![],
+                },
+                color,
+                owner: None,
+            },
+            color,
+        );
+        item_colored(
+            m,
+            &frame,
+            &Item {
+                prim: Prim::Path {
+                    pts: r.corners().to_vec(),
+                    w: 0,
+                    closed: true,
+                },
+                color: edge,
+                owner: None,
+            },
+            edge,
+        );
     }
     handler(k).overlay(app, k, v, m);
     // Cursor cross-hair at the snapped point.
@@ -230,8 +309,34 @@ fn overlay(app: &AppState, k: &Kind, v: &View, m: &mut Mesh) {
         let c = v.cursor;
         let s = (6.0 / v.camera.zoom * 1e6) as i64;
         let col = rgba(0x808080, 220);
-        item_colored(m, &frame, &Item { prim: Prim::Seg { a: c - Point::new(s, 0), b: c + Point::new(s, 0), w: 0 }, color: col, owner: None }, col);
-        item_colored(m, &frame, &Item { prim: Prim::Seg { a: c - Point::new(0, s), b: c + Point::new(0, s), w: 0 }, color: col, owner: None }, col);
+        item_colored(
+            m,
+            &frame,
+            &Item {
+                prim: Prim::Seg {
+                    a: c - Point::new(s, 0),
+                    b: c + Point::new(s, 0),
+                    w: 0,
+                },
+                color: col,
+                owner: None,
+            },
+            col,
+        );
+        item_colored(
+            m,
+            &frame,
+            &Item {
+                prim: Prim::Seg {
+                    a: c - Point::new(0, s),
+                    b: c + Point::new(0, s),
+                    w: 0,
+                },
+                color: col,
+                owner: None,
+            },
+            col,
+        );
     }
 }
 
@@ -249,7 +354,10 @@ pub fn request_frame(app: AppState, k: Kind, view: Rc<RefCell<View>>) {
 
 fn local_xy(ev: &web_sys::MouseEvent, canvas: &web_sys::HtmlCanvasElement) -> (f64, f64) {
     let r = canvas.get_bounding_client_rect();
-    (ev.client_x() as f64 - r.left(), ev.client_y() as f64 - r.top())
+    (
+        ev.client_x() as f64 - r.left(),
+        ev.client_y() as f64 - r.top(),
+    )
 }
 
 fn update_cursor(app: &AppState, v: &mut View, xy: (f64, f64)) {
@@ -281,8 +389,15 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
             let canvas: web_sys::HtmlCanvasElement = canvas.unchecked_into();
             match Renderer::new(canvas) {
                 Ok(renderer) => {
-                    let dpr = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
-                    let saved = CAMERAS.with(|c| c.borrow().iter().find(|(k, _)| *k == kind).map(|(_, cam)| *cam));
+                    let dpr = web_sys::window()
+                        .map(|w| w.device_pixel_ratio())
+                        .unwrap_or(1.0);
+                    let saved = CAMERAS.with(|c| {
+                        c.borrow()
+                            .iter()
+                            .find(|(k, _)| *k == kind)
+                            .map(|(_, cam)| *cam)
+                    });
                     let v = Rc::new(RefCell::new(View {
                         renderer,
                         camera: saved.unwrap_or_default(),
@@ -347,8 +462,12 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
         let view_cell = view_cell.clone();
         let kind = kind.clone();
         Effect::new(move |_| {
-            let Some(cmd) = app.view_cmd.get() else { return };
-            let Some(v) = view_cell.borrow().clone() else { return };
+            let Some(cmd) = app.view_cmd.get() else {
+                return;
+            };
+            let Some(v) = view_cell.borrow().clone() else {
+                return;
+            };
             {
                 let mut vb = v.borrow_mut();
                 let (w, h) = vb.camera.size;
@@ -412,7 +531,10 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                     let mut v = view.borrow_mut();
                     update_cursor(&app, &mut v, xy);
                     if ev.button() == 1 || ev.button() == 2 {
-                        v.gesture = Gesture::Pan { last: xy, moved: 0.0 };
+                        v.gesture = Gesture::Pan {
+                            last: xy,
+                            moved: 0.0,
+                        };
                         return;
                     }
                     if ev.button() != 0 {
@@ -441,7 +563,12 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                                         app.selection.set(sel.clone());
                                     }
                                     let before = Box::new(app.project.get_untracked());
-                                    v.gesture = Gesture::Drag { start: v.cursor, before, ids: sel, delta: Point::ZERO };
+                                    v.gesture = Gesture::Drag {
+                                        start: v.cursor,
+                                        before,
+                                        ids: sel,
+                                        delta: Point::ZERO,
+                                    };
                                 }
                             }
                             None => {
@@ -476,7 +603,12 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                             *moved += (xy.0 - last.0).abs() + (xy.1 - last.1).abs();
                             *last = xy;
                         }
-                        Gesture::Drag { start, before, ids, delta } => {
+                        Gesture::Drag {
+                            start,
+                            before,
+                            ids,
+                            delta,
+                        } => {
                             let d = v.cursor - *start;
                             if d != *delta {
                                 *delta = d;
@@ -529,7 +661,8 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                                             app.selection.set(vec![id]);
                                         }
                                     }
-                                    app.context_menu.set(Some((ev.client_x() as f64, ev.client_y() as f64)));
+                                    app.context_menu
+                                        .set(Some((ev.client_x() as f64, ev.client_y() as f64)));
                                 } else {
                                     // Right click ends the current tool action.
                                     h.tool_dbl(&app, &kind, &mut v);
@@ -537,7 +670,9 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                                 }
                             }
                         }
-                        Gesture::Drag { before, delta, ids, .. } => {
+                        Gesture::Drag {
+                            before, delta, ids, ..
+                        } => {
                             if delta != Point::ZERO {
                                 app.history.update_value(|hist| hist.push("Move", *before));
                                 app.touch();
@@ -550,7 +685,11 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                             if (a.0 - xy.0).abs() + (a.1 - xy.1).abs() > 3.0 {
                                 let crossing = xy.0 < a.0;
                                 let found = h.in_rect(&app, &kind, Rect::new(pa, pb), crossing);
-                                let mut sel = if ev.shift_key() { app.selection.get_untracked() } else { vec![] };
+                                let mut sel = if ev.shift_key() {
+                                    app.selection.get_untracked()
+                                } else {
+                                    vec![]
+                                };
                                 for f in found {
                                     if !sel.contains(&f) {
                                         sel.push(f);
@@ -603,8 +742,13 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                     let mut v = view.borrow_mut();
                     if ev.shift_key() {
                         v.camera.pan_pixels(-ev.delta_y(), 0.0);
-                    } else if ev.ctrl_key() || ev.delta_mode() != 0 || ev.delta_y().abs() >= 4.0 || ev.delta_x() == 0.0 {
-                        let f = (-ev.delta_y() * if ev.delta_mode() == 1 { 0.05 } else { 0.0015 }).exp();
+                    } else if ev.ctrl_key()
+                        || ev.delta_mode() != 0
+                        || ev.delta_y().abs() >= 4.0
+                        || ev.delta_x() == 0.0
+                    {
+                        let f = (-ev.delta_y() * if ev.delta_mode() == 1 { 0.05 } else { 0.0015 })
+                            .exp();
                         v.camera.zoom_at(xy.0, xy.1, f.clamp(0.5, 2.0));
                     } else {
                         v.camera.pan_pixels(-ev.delta_x(), -ev.delta_y());

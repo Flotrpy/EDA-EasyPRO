@@ -9,15 +9,64 @@ fn title(app: &AppState, t: &Tab) -> (String, &'static str) {
         Tab::Start => ("Start Page".into(), "list"),
         Tab::Schematic { board, sheet } => {
             let b = p.board(*board);
-            let sheet = b.and_then(|b| b.schematic.sheets.get(*sheet)).map(|s| s.name.clone()).unwrap_or_default();
+            let sheet = b
+                .and_then(|b| b.schematic.sheets.get(*sheet))
+                .map(|s| s.name.clone())
+                .unwrap_or_default();
             let multi = p.boards.len() > 1;
-            (if multi { format!("{sheet} · {}", b.map(|b| b.name.as_str()).unwrap_or("")) } else { sheet }, "schematic")
+            (
+                if multi {
+                    format!("{sheet} · {}", b.map(|b| b.name.as_str()).unwrap_or(""))
+                } else {
+                    sheet
+                },
+                "schematic",
+            )
         }
-        Tab::Pcb { board } => (format!("PCB · {}", p.board(*board).map(|b| b.name.as_str()).unwrap_or("")), "pcb"),
-        Tab::View3d { board } => (format!("3D · {}", p.board(*board).map(|b| b.name.as_str()).unwrap_or("")), "cube"),
-        Tab::Device { id } => (p.library.devices.get(id).map(|d| d.name.clone()).unwrap_or_else(|| id.clone()), "chip"),
-        Tab::Symbol { id } => (format!("Symbol · {}", p.library.symbols.get(id).map(|d| d.name.clone()).unwrap_or_else(|| id.clone())), "schematic"),
-        Tab::Footprint { id } => (format!("Footprint · {}", p.library.footprints.get(id).map(|d| d.name.clone()).unwrap_or_else(|| id.clone())), "footprint"),
+        Tab::Pcb { board } => (
+            format!(
+                "PCB · {}",
+                p.board(*board).map(|b| b.name.as_str()).unwrap_or("")
+            ),
+            "pcb",
+        ),
+        Tab::View3d { board } => (
+            format!(
+                "3D · {}",
+                p.board(*board).map(|b| b.name.as_str()).unwrap_or("")
+            ),
+            "cube",
+        ),
+        Tab::Device { id } => (
+            p.library
+                .devices
+                .get(id)
+                .map(|d| d.name.clone())
+                .unwrap_or_else(|| id.clone()),
+            "chip",
+        ),
+        Tab::Symbol { id } => (
+            format!(
+                "Symbol · {}",
+                p.library
+                    .symbols
+                    .get(id)
+                    .map(|d| d.name.clone())
+                    .unwrap_or_else(|| id.clone())
+            ),
+            "schematic",
+        ),
+        Tab::Footprint { id } => (
+            format!(
+                "Footprint · {}",
+                p.library
+                    .footprints
+                    .get(id)
+                    .map(|d| d.name.clone())
+                    .unwrap_or_else(|| id.clone())
+            ),
+            "footprint",
+        ),
     })
 }
 

@@ -30,7 +30,13 @@ pub fn LeftPanel() -> impl IntoView {
 }
 
 #[component]
-fn TreeItem(icon: &'static str, #[prop(into)] label: String, active: Signal<bool>, on_open: impl Fn() + 'static, #[prop(optional)] depth: u8) -> impl IntoView {
+fn TreeItem(
+    icon: &'static str,
+    #[prop(into)] label: String,
+    active: Signal<bool>,
+    on_open: impl Fn() + 'static,
+    #[prop(optional)] depth: u8,
+) -> impl IntoView {
     view! {
         <div class="tree-item" class:active=move || active.get() style=format!("padding-left: {}px", 8 + depth as u32 * 14) on:click=move |_| on_open() title=label.clone()>
             <Icon name=icon />
@@ -137,7 +143,13 @@ fn delete_recent(app: &AppState, key: String) {
 
 /// Built-in plus project devices, project first.
 fn all_devices(app: &AppState) -> Vec<(Device, bool)> {
-    let mut v: Vec<(Device, bool)> = app.project.with(|p| p.library.devices.values().map(|d| (d.clone(), true)).collect());
+    let mut v: Vec<(Device, bool)> = app.project.with(|p| {
+        p.library
+            .devices
+            .values()
+            .map(|d| (d.clone(), true))
+            .collect()
+    });
     for d in easypro_core::builtin::library().devices.values() {
         if !v.iter().any(|(x, _)| x.id == d.id) {
             v.push((d.clone(), false));
@@ -158,20 +170,44 @@ fn LibraryPanel() -> impl IntoView {
             .into_iter()
             .filter(|(d, _)| cat.is_empty() || d.category == cat)
             .filter(|(d, _)| {
-                let hay = format!("{} {} {} {} {} {}", d.name, d.value, d.category, d.description, d.footprint.as_deref().unwrap_or(""), d.attributes.values().cloned().collect::<Vec<_>>().join(" ")).to_lowercase();
+                let hay = format!(
+                    "{} {} {} {} {} {}",
+                    d.name,
+                    d.value,
+                    d.category,
+                    d.description,
+                    d.footprint.as_deref().unwrap_or(""),
+                    d.attributes.values().cloned().collect::<Vec<_>>().join(" ")
+                )
+                .to_lowercase();
                 terms.iter().all(|t| hay.contains(t.as_str()))
             })
             .collect();
-        v.sort_by(|a, b| a.0.category.cmp(&b.0.category).then(a.0.name.cmp(&b.0.name)));
+        v.sort_by(|a, b| {
+            a.0.category
+                .cmp(&b.0.category)
+                .then(a.0.name.cmp(&b.0.name))
+        });
         v
     });
     let categories = Memo::new(move |_| {
-        let mut c: Vec<String> = all_devices(&app).into_iter().map(|(d, _)| d.category).filter(|c| !c.is_empty()).collect();
+        let mut c: Vec<String> = all_devices(&app)
+            .into_iter()
+            .map(|(d, _)| d.category)
+            .filter(|c| !c.is_empty())
+            .collect();
         c.sort();
         c.dedup();
         c
     });
-    let picked = Memo::new(move |_| app.library_pick.get().and_then(|id| all_devices(&app).into_iter().find(|(d, _)| d.id == id).map(|x| x.0)));
+    let picked = Memo::new(move |_| {
+        app.library_pick.get().and_then(|id| {
+            all_devices(&app)
+                .into_iter()
+                .find(|(d, _)| d.id == id)
+                .map(|x| x.0)
+        })
+    });
     view! {
         <div class="library">
             <input id="library-search" class="filter" type="search" placeholder="Search parts: 0603 10k, esp32, usb…"

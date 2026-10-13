@@ -15,7 +15,11 @@ use leptos::prelude::*;
 
 /// A labelled text input that commits on change.
 #[component]
-fn TextProp(label: &'static str, value: String, on_set: impl Fn(String) + 'static) -> impl IntoView {
+fn TextProp(
+    label: &'static str,
+    value: String,
+    on_set: impl Fn(String) + 'static,
+) -> impl IntoView {
     view! {
         <label class="prop">
             <span>{label}</span>
@@ -64,7 +68,12 @@ fn CheckProp(label: &'static str, value: bool, on_set: impl Fn(bool) + 'static) 
 }
 
 #[component]
-fn SelectProp(label: &'static str, options: Vec<(String, String)>, value: String, on_set: impl Fn(String) + 'static) -> impl IntoView {
+fn SelectProp(
+    label: &'static str,
+    options: Vec<(String, String)>,
+    value: String,
+    on_set: impl Fn(String) + 'static,
+) -> impl IntoView {
     view! {
         <label class="prop">
             <span>{label}</span>
@@ -76,10 +85,19 @@ fn SelectProp(label: &'static str, options: Vec<(String, String)>, value: String
 }
 
 fn rotations() -> Vec<(String, String)> {
-    ["0", "90", "180", "270"].iter().map(|r| (r.to_string(), format!("{r}°"))).collect()
+    ["0", "90", "180", "270"]
+        .iter()
+        .map(|r| (r.to_string(), format!("{r}°")))
+        .collect()
 }
 
-fn sheet_edit(app: &AppState, b: Id, s: usize, label: &str, f: impl FnOnce(&mut easypro_core::schematic::Sheet)) {
+fn sheet_edit(
+    app: &AppState,
+    b: Id,
+    s: usize,
+    label: &str,
+    f: impl FnOnce(&mut easypro_core::schematic::Sheet),
+) {
     app.edit(label, |p| {
         if let Some(sh) = p.board_mut(b).and_then(|bd| bd.schematic.sheets.get_mut(s)) {
             f(sh);
@@ -87,7 +105,13 @@ fn sheet_edit(app: &AppState, b: Id, s: usize, label: &str, f: impl FnOnce(&mut 
     });
 }
 
-fn pcb_edit(app: &AppState, b: Id, label: &str, rebuild: bool, f: impl FnOnce(&mut easypro_core::pcb::Pcb)) {
+fn pcb_edit(
+    app: &AppState,
+    b: Id,
+    label: &str,
+    rebuild: bool,
+    f: impl FnOnce(&mut easypro_core::pcb::Pcb),
+) {
     app.edit(label, |p| {
         let lib = p.library.clone();
         if let Some(bd) = p.board_mut(b) {
@@ -132,9 +156,15 @@ fn sch_props(app: &AppState, b: Id, s: usize, sel: &[Id]) -> impl IntoView {
     let data = app.project.with_untracked(|p: &Project| {
         let bd = p.board(b)?;
         let sh = bd.schematic.sheets.get(s)?.clone();
-        Some((sh, p.library.clone(), easypro_core::netlist::connectivity(&bd.schematic, &p.library)))
+        Some((
+            sh,
+            p.library.clone(),
+            easypro_core::netlist::connectivity(&bd.schematic, &p.library),
+        ))
     });
-    let Some((sh, lib, conn)) = data else { return view! { <p>"Sheet not found"</p> }.into_any() };
+    let Some((sh, lib, conn)) = data else {
+        return view! { <p>"Sheet not found"</p> }.into_any();
+    };
     if sel.len() > 1 {
         return view! {
             <p class="hint">{format!("{} objects selected", sel.len())}</p>
@@ -147,7 +177,10 @@ fn sch_props(app: &AppState, b: Id, s: usize, sel: &[Id]) -> impl IntoView {
         .into_any();
     }
     let Some(&id) = sel.first() else {
-        let papers: Vec<(String, String)> = PaperSize::ALL.iter().map(|p| (p.label().to_string(), p.label().to_string())).collect();
+        let papers: Vec<(String, String)> = PaperSize::ALL
+            .iter()
+            .map(|p| (p.label().to_string(), p.label().to_string()))
+            .collect();
         let parts = sh.components.len();
         let nets = conn.nets.len();
         return view! {
@@ -255,13 +288,19 @@ fn layer_options(p: &easypro_core::pcb::Pcb, copper_only: bool) -> Vec<(String, 
 }
 
 fn layer_by_name(p: &easypro_core::pcb::Pcb, name: &str) -> Option<Layer> {
-    Layer::all_for(p.copper_layers).into_iter().find(|l| l.name() == name)
+    Layer::all_for(p.copper_layers)
+        .into_iter()
+        .find(|l| l.name() == name)
 }
 
 fn pcb_props(app: &AppState, b: Id, sel: &[Id]) -> impl IntoView {
     let app = *app;
-    let data = app.project.with_untracked(|p| p.board(b).map(|bd| (bd.pcb.clone(), p.library.clone())));
-    let Some((pcb, lib)) = data else { return view! { <p>"Board not found"</p> }.into_any() };
+    let data = app
+        .project
+        .with_untracked(|p| p.board(b).map(|bd| (bd.pcb.clone(), p.library.clone())));
+    let Some((pcb, lib)) = data else {
+        return view! { <p>"Board not found"</p> }.into_any();
+    };
     if sel.len() > 1 {
         return view! {
             <p class="hint">{format!("{} objects selected", sel.len())}</p>
@@ -273,9 +312,15 @@ fn pcb_props(app: &AppState, b: Id, sel: &[Id]) -> impl IntoView {
         }
         .into_any();
     }
-    let nets: Vec<(String, String)> = std::iter::once((String::new(), "(no net)".to_string())).chain(pcb.nets().into_iter().map(|n| (n.clone(), n))).collect();
+    let nets: Vec<(String, String)> = std::iter::once((String::new(), "(no net)".to_string()))
+        .chain(pcb.nets().into_iter().map(|n| (n.clone(), n)))
+        .collect();
     let Some(&id) = sel.first() else {
-        let size = pcb.outline().map(easypro_core::geom::Rect::from_points).map(|r| format!("{} x {}", app.fmt_len(r.width()), app.fmt_len(r.height()))).unwrap_or_else(|| "no outline".into());
+        let size = pcb
+            .outline()
+            .map(easypro_core::geom::Rect::from_points)
+            .map(|r| format!("{} x {}", app.fmt_len(r.width()), app.fmt_len(r.height())))
+            .unwrap_or_else(|| "no outline".into());
         return view! {
             <h4>"Board"</h4>
             <p class="prop-ro"><span>"Size"</span><b>{size}</b></p>
@@ -292,7 +337,11 @@ fn pcb_props(app: &AppState, b: Id, sel: &[Id]) -> impl IntoView {
     match pcb_kind(&pcb, id) {
         Some(PcbKind::Component) => {
             let c = pcb.component(id).cloned().unwrap();
-            let fp = lib.footprints.get(&c.footprint).map(|f| f.name.clone()).unwrap_or_else(|| c.footprint.clone());
+            let fp = lib
+                .footprints
+                .get(&c.footprint)
+                .map(|f| f.name.clone())
+                .unwrap_or_else(|| c.footprint.clone());
             let link = c.link;
             view! {
                 <h4>{format!("{} · {}", c.designator, fp)}</h4>
@@ -365,13 +414,21 @@ fn pcb_props(app: &AppState, b: Id, sel: &[Id]) -> impl IntoView {
 }
 
 fn pin_kinds() -> Vec<(String, String)> {
-    PinKind::ALL.iter().map(|k| (format!("{k:?}"), k.label().to_string())).collect()
+    PinKind::ALL
+        .iter()
+        .map(|k| (format!("{k:?}"), k.label().to_string()))
+        .collect()
 }
 
 fn sym_props(app: &AppState, id: &str, sel: &[Id]) -> impl IntoView {
     use crate::editor::symbol::{edit_symbol, GFX};
     let app = *app;
-    let Some(sym) = app.project.with_untracked(|p| p.library.symbols.get(id).cloned()) else { return view! { <p>"Symbol not found"</p> }.into_any() };
+    let Some(sym) = app
+        .project
+        .with_untracked(|p| p.library.symbols.get(id).cloned())
+    else {
+        return view! { <p>"Symbol not found"</p> }.into_any();
+    };
     let sid = StoredValue::new(id.to_string());
     match sel {
         [one] if one.0 < GFX => {
@@ -402,7 +459,12 @@ fn sym_props(app: &AppState, id: &str, sel: &[Id]) -> impl IntoView {
 fn fp_props(app: &AppState, id: &str, sel: &[Id]) -> impl IntoView {
     use crate::editor::footprint::{edit_footprint, GFX};
     let app = *app;
-    let Some(fp) = app.project.with_untracked(|p| p.library.footprints.get(id).cloned()) else { return view! { <p>"Footprint not found"</p> }.into_any() };
+    let Some(fp) = app
+        .project
+        .with_untracked(|p| p.library.footprints.get(id).cloned())
+    else {
+        return view! { <p>"Footprint not found"</p> }.into_any();
+    };
     let fid = StoredValue::new(id.to_string());
     match sel {
         [one] if one.0 < GFX => {
@@ -458,7 +520,11 @@ fn LayersPanel() -> impl IntoView {
     let app = use_app();
     let layers = Memo::new(move |_| {
         let b = app.tab().board();
-        app.project.with(|p| b.and_then(|b| p.board(b)).map(|bd| Layer::all_for(bd.pcb.copper_layers)).unwrap_or_default())
+        app.project.with(|p| {
+            b.and_then(|b| p.board(b))
+                .map(|bd| Layer::all_for(bd.pcb.copper_layers))
+                .unwrap_or_default()
+        })
     });
     view! {
         <div class="panel-title"><Icon name="layers" />"Layers"</div>
@@ -486,7 +552,11 @@ fn NetsPanel() -> impl IntoView {
     let nets = Memo::new(move |_| {
         app.rev.track();
         let b = app.tab().board();
-        app.project.with_untracked(|p| b.and_then(|b| p.board(b)).map(|bd| bd.pcb.nets()).unwrap_or_default())
+        app.project.with_untracked(|p| {
+            b.and_then(|b| p.board(b))
+                .map(|bd| bd.pcb.nets())
+                .unwrap_or_default()
+        })
     });
     view! {
         <div class="panel-title"><Icon name="list" />"Nets"

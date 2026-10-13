@@ -63,7 +63,9 @@ const SETTINGS_KEY: &str = "easypro.settings";
 
 impl Settings {
     pub fn load() -> Settings {
-        storage::get_pref(SETTINGS_KEY).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+        storage::get_pref(SETTINGS_KEY)
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
     }
 
     pub fn save(&self) {
@@ -85,7 +87,9 @@ pub enum Tab {
 impl Tab {
     pub fn board(&self) -> Option<Id> {
         match self {
-            Tab::Schematic { board, .. } | Tab::Pcb { board } | Tab::View3d { board } => Some(*board),
+            Tab::Schematic { board, .. } | Tab::Pcb { board } | Tab::View3d { board } => {
+                Some(*board)
+            }
             _ => None,
         }
     }
@@ -302,7 +306,11 @@ impl AppState {
             cursor: RwSignal::new(None),
             status: RwSignal::new(String::new()),
             active_layer: RwSignal::new(Layer::TopCopper),
-            hidden_layers: RwSignal::new(vec![Layer::TopAssembly, Layer::BottomAssembly, Layer::Document]),
+            hidden_layers: RwSignal::new(vec![
+                Layer::TopAssembly,
+                Layer::BottomAssembly,
+                Layer::Document,
+            ]),
             highlight_net: RwSignal::new(None),
             view_cmd: RwSignal::new(None),
             menu_open: RwSignal::new(None),
@@ -324,12 +332,15 @@ impl AppState {
 
     pub fn tab_untracked(&self) -> Tab {
         let i = self.active.get_untracked();
-        self.tabs.with_untracked(|t| t.get(i).cloned().unwrap_or(Tab::Start))
+        self.tabs
+            .with_untracked(|t| t.get(i).cloned().unwrap_or(Tab::Start))
     }
 
     /// Open (or focus) a tab.
     pub fn open(&self, tab: Tab) {
-        let existing = self.tabs.with_untracked(|t| t.iter().position(|x| *x == tab));
+        let existing = self
+            .tabs
+            .with_untracked(|t| t.iter().position(|x| *x == tab));
         let idx = match existing {
             Some(i) => i,
             None => {
@@ -396,7 +407,8 @@ impl AppState {
 
     pub fn undo(&self) {
         let mut label = None;
-        self.project.update(|p| self.history.update_value(|h| label = h.undo(p)));
+        self.project
+            .update(|p| self.history.update_value(|h| label = h.undo(p)));
         match label {
             Some(l) => {
                 self.selection.set(vec![]);
@@ -409,7 +421,8 @@ impl AppState {
 
     pub fn redo(&self) {
         let mut label = None;
-        self.project.update(|p| self.history.update_value(|h| label = h.redo(p)));
+        self.project
+            .update(|p| self.history.update_value(|h| label = h.redo(p)));
         match label {
             Some(l) => {
                 self.selection.set(vec![]);
@@ -459,10 +472,15 @@ impl AppState {
         self.highlight_net.set(None);
         self.dirty.set(false);
         self.saved_name.set(None);
-        let boards = self.project.with_untracked(|p| p.boards.iter().map(|b| b.id).collect::<Vec<_>>());
+        let boards = self
+            .project
+            .with_untracked(|p| p.boards.iter().map(|b| b.id).collect::<Vec<_>>());
         let mut tabs = vec![Tab::Start];
         if let Some(b) = boards.first() {
-            tabs.push(Tab::Schematic { board: *b, sheet: 0 });
+            tabs.push(Tab::Schematic {
+                board: *b,
+                sheet: 0,
+            });
             tabs.push(Tab::Pcb { board: *b });
         }
         self.tabs.set(tabs);

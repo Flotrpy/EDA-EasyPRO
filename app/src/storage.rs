@@ -24,15 +24,31 @@ pub struct Snapshot {
 }
 
 async fn wait(p: js_sys::Promise) -> Result<JsValue, String> {
-    JsFuture::from(p).await.map_err(|e| e.as_string().unwrap_or_else(|| format!("{e:?}")))
+    JsFuture::from(p)
+        .await
+        .map_err(|e| e.as_string().unwrap_or_else(|| format!("{e:?}")))
 }
 
 pub async fn save_local(key: &str, project: &Project) -> Result<(), String> {
     let json = project.to_json();
     wait(js::idb_put("projects", key, &json)).await?;
-    let parts = project.boards.iter().map(|b| b.schematic.components().count()).sum();
-    let meta = ProjectMeta { key: key.into(), name: project.name.clone(), modified: js::now_iso(), parts };
-    wait(js::idb_put("meta", key, &serde_json::to_string(&meta).unwrap())).await?;
+    let parts = project
+        .boards
+        .iter()
+        .map(|b| b.schematic.components().count())
+        .sum();
+    let meta = ProjectMeta {
+        key: key.into(),
+        name: project.name.clone(),
+        modified: js::now_iso(),
+        parts,
+    };
+    wait(js::idb_put(
+        "meta",
+        key,
+        &serde_json::to_string(&meta).unwrap(),
+    ))
+    .await?;
     Ok(())
 }
 
@@ -67,7 +83,12 @@ async fn all(store: &str) -> Result<Vec<(String, String)>, String> {
 
 /// Recent projects, newest first.
 pub async fn list_local() -> Vec<ProjectMeta> {
-    let mut v: Vec<ProjectMeta> = all("meta").await.unwrap_or_default().into_iter().filter_map(|(_, j)| serde_json::from_str(&j).ok()).collect();
+    let mut v: Vec<ProjectMeta> = all("meta")
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(_, j)| serde_json::from_str(&j).ok())
+        .collect();
     v.sort_by(|a, b| b.modified.cmp(&a.modified));
     v
 }
@@ -75,8 +96,17 @@ pub async fn list_local() -> Vec<ProjectMeta> {
 /// Store a named version of the project ("version history").
 pub async fn snapshot(key: &str, project: &Project, label: &str) -> Result<(), String> {
     let time = js::now_iso();
-    let s = Snapshot { label: label.into(), time: time.clone(), project: project.to_json() };
-    wait(js::idb_put("snapshots", &format!("{key}|{time}"), &serde_json::to_string(&s).unwrap())).await?;
+    let s = Snapshot {
+        label: label.into(),
+        time: time.clone(),
+        project: project.to_json(),
+    };
+    wait(js::idb_put(
+        "snapshots",
+        &format!("{key}|{time}"),
+        &serde_json::to_string(&s).unwrap(),
+    ))
+    .await?;
     Ok(())
 }
 
@@ -129,5 +159,9 @@ pub fn set_pref(key: &str, value: &str) {
 
 /// Random-enough key for a new project.
 pub fn new_key() -> String {
-    format!("p{:x}{:06x}", js_sys::Date::now() as u64, (js_sys::Math::random() * 16_777_215.0) as u32)
+    format!(
+        "p{:x}{:06x}",
+        js_sys::Date::now() as u64,
+        (js_sys::Math::random() * 16_777_215.0) as u32
+    )
 }

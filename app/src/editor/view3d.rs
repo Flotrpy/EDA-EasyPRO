@@ -25,7 +25,9 @@ fn frame(st: Rc<RefCell<State3d>>, bg: [f32; 3]) {
     request_animation_frame(move || {
         let mut s = st.borrow_mut();
         s.pending = false;
-        let dpr = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
+        let dpr = web_sys::window()
+            .map(|w| w.device_pixel_ratio())
+            .unwrap_or(1.0);
         let (w, h) = s.viewer.resize(dpr);
         s.cam.aspect = (w / h.max(1.0)) as f32;
         let cam = s.cam;
@@ -40,7 +42,13 @@ pub fn View3dPane(board: Id) -> impl IntoView {
     let cell: Rc<RefCell<Option<Rc<RefCell<State3d>>>>> = Rc::new(RefCell::new(None));
     let opts = RwSignal::new(View3dOptions::default());
     let error = RwSignal::new(None::<String>);
-    let bg = move || if app.dark.get_untracked() { [0.11, 0.115, 0.13] } else { [0.86, 0.88, 0.91] };
+    let bg = move || {
+        if app.dark.get_untracked() {
+            [0.11, 0.115, 0.13]
+        } else {
+            [0.86, 0.88, 0.91]
+        }
+    };
 
     {
         let cell = cell.clone();
@@ -52,18 +60,30 @@ pub fn View3dPane(board: Id) -> impl IntoView {
             if cell.borrow().is_none() {
                 let c: web_sys::HtmlCanvasElement = canvas.unchecked_into();
                 match Viewer::new(c) {
-                    Ok(viewer) => *cell.borrow_mut() = Some(Rc::new(RefCell::new(State3d { viewer, cam: OrbitCamera::default(), drag: None, pending: false }))),
+                    Ok(viewer) => {
+                        *cell.borrow_mut() = Some(Rc::new(RefCell::new(State3d {
+                            viewer,
+                            cam: OrbitCamera::default(),
+                            drag: None,
+                            pending: false,
+                        })))
+                    }
                     Err(e) => {
                         error.set(Some(e));
                         return;
                     }
                 }
             }
-            let Some(st) = cell.borrow().clone() else { return };
-            let built = app.project.with_untracked(|p| p.board(board).map(|b| board_mesh(&b.pcb, &p.library, &o)));
+            let Some(st) = cell.borrow().clone() else {
+                return;
+            };
+            let built = app
+                .project
+                .with_untracked(|p| p.board(board).map(|b| board_mesh(&b.pcb, &p.library, &o)));
             if let Some((mesh, radius)) = built {
                 let mut s = st.borrow_mut();
-                let first = s.cam.target == [0.0; 3] && s.cam.distance == OrbitCamera::default().distance;
+                let first =
+                    s.cam.target == [0.0; 3] && s.cam.distance == OrbitCamera::default().distance;
                 s.viewer.set_mesh(&mesh);
                 if first {
                     s.cam.fit(radius);
@@ -100,7 +120,9 @@ pub fn View3dPane(board: Id) -> impl IntoView {
                 let _ = c.set_pointer_capture(ev.pointer_id());
             }
             let pan = ev.button() != 0 || ev.shift_key();
-            with(&|st| st.borrow_mut().drag = Some((ev.client_x() as f64, ev.client_y() as f64, pan)));
+            with(&|st| {
+                st.borrow_mut().drag = Some((ev.client_x() as f64, ev.client_y() as f64, pan))
+            });
         }
     };
     let on_move = {

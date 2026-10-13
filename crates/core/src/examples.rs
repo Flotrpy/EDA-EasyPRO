@@ -24,7 +24,8 @@ impl Builder {
                 device: device.into(),
                 designator: format!("{}?", builtin::library().devices[device].prefix),
                 value: value.into(),
-                pos: Point::new(mil(x), mil(y)),
+                // Centred on an A4 sheet.
+                pos: Point::new(mil(x + 850.0), mil(y - 1800.0)),
                 rotation,
                 mirror: false,
                 attributes: Default::default(),
@@ -85,6 +86,7 @@ pub fn blinker() -> Project {
         p: Project::new("555 LED Blinker"),
     };
     b.p.description = "NE555 astable oscillator driving an LED at about 1.4 Hz.".into();
+    b.p.boards[0].schematic.sheets[0].paper = crate::schematic::PaperSize::A4;
     let u1 = b.part("dev:NE555-SOIC", "NE555", 5000.0, 6000.0, 0.0);
     let r1 = b.part("dev:R-0603", "10k", 7000.0, 6600.0, 0.0);
     let r2 = b.part("dev:R-0603", "47k", 7000.0, 6000.0, 0.0);

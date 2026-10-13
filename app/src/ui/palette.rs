@@ -50,11 +50,29 @@ pub fn Palette() -> impl IntoView {
         let mut out: Vec<(usize, Entry)> = COMMANDS
             .iter()
             .filter(|c| !c.menu.is_empty() && commands::enabled(&app, c))
-            .filter_map(|c| score(&format!("{} {}", c.menu, c.label), &q).map(|s| (s, Entry::Cmd(c.id, c.label, c.icon, commands::key_for(&app, c)))))
+            .filter_map(|c| {
+                score(&format!("{} {}", c.menu, c.label), &q).map(|s| {
+                    (
+                        s,
+                        Entry::Cmd(c.id, c.label, c.icon, commands::key_for(&app, c)),
+                    )
+                })
+            })
             .collect();
         if q.len() >= 2 {
-            for d in easypro_core::builtin::library().search(&q).into_iter().take(8) {
-                out.push((50, Entry::Part(d.id.clone(), d.name.clone(), d.footprint.clone().unwrap_or_default())));
+            for d in easypro_core::builtin::library()
+                .search(&q)
+                .into_iter()
+                .take(8)
+            {
+                out.push((
+                    50,
+                    Entry::Part(
+                        d.id.clone(),
+                        d.name.clone(),
+                        d.footprint.clone().unwrap_or_default(),
+                    ),
+                ));
             }
         }
         out.sort_by_key(|(s, _)| *s);

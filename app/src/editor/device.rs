@@ -29,7 +29,20 @@ pub fn symbol_svg(app: &AppState, sym: &str) -> String {
             .symbols
             .get(sym)
             .or_else(|| easypro_core::builtin::library().symbols.get(sym))
-            .map(|s| scene_to_svg(&symbol_scene(s, if dark { &SchTheme::DARK } else { &SchTheme::LIGHT }), None, mm(1.5)))
+            .map(|s| {
+                scene_to_svg(
+                    &symbol_scene(
+                        s,
+                        if dark {
+                            &SchTheme::DARK
+                        } else {
+                            &SchTheme::LIGHT
+                        },
+                    ),
+                    None,
+                    mm(1.5),
+                )
+            })
             .unwrap_or_default()
     })
 }
@@ -93,11 +106,14 @@ pub fn DevicePage(id: String) -> impl IntoView {
         let id = id.clone();
         Memo::new(move |_| {
             app.rev.track();
-            app.project.with_untracked(|p| p.library.devices.get(&id).cloned())
+            app.project
+                .with_untracked(|p| p.library.devices.get(&id).cloned())
         })
     };
     let id = StoredValue::new(id);
-    let text_field = move |label: &'static str, get: fn(&Device) -> String, set: fn(&mut Device, String)| {
+    let text_field = move |label: &'static str,
+                           get: fn(&Device) -> String,
+                           set: fn(&mut Device, String)| {
         view! {
             <Field label=label>
                 <input type="text" prop:value=move || dev.get().map(|d| get(&d)).unwrap_or_default()
@@ -105,9 +121,27 @@ pub fn DevicePage(id: String) -> impl IntoView {
             </Field>
         }
     };
-    let symbols = move || app.project.with(|p| p.library.symbols.values().map(|s| (s.id.clone(), s.name.clone())).collect::<Vec<_>>());
-    let footprints = move || app.project.with(|p| p.library.footprints.values().map(|s| (s.id.clone(), s.name.clone())).collect::<Vec<_>>());
-    let mm_input = move |label: &'static str, get: fn(&Model3d) -> i64, set: fn(&mut Model3d, i64)| {
+    let symbols = move || {
+        app.project.with(|p| {
+            p.library
+                .symbols
+                .values()
+                .map(|s| (s.id.clone(), s.name.clone()))
+                .collect::<Vec<_>>()
+        })
+    };
+    let footprints = move || {
+        app.project.with(|p| {
+            p.library
+                .footprints
+                .values()
+                .map(|s| (s.id.clone(), s.name.clone()))
+                .collect::<Vec<_>>()
+        })
+    };
+    let mm_input = move |label: &'static str,
+                         get: fn(&Model3d) -> i64,
+                         set: fn(&mut Model3d, i64)| {
         view! {
             <Field label=label>
                 <input type="number" step="0.1" prop:value=move || dev.get().and_then(|d| d.model).map(|m| format!("{}", get(&m) as f64 / 1e6)).unwrap_or_default()
@@ -121,11 +155,20 @@ pub fn DevicePage(id: String) -> impl IntoView {
     };
     let import_obj = move |_| {
         spawn_local(async move {
-            let Some((name, text)) = storage::pick_file(".obj").await else { return };
+            let Some((name, text)) = storage::pick_file(".obj").await else {
+                return;
+            };
             match easypro_view3d::build::parse_obj(&text) {
                 Ok(body) => {
                     edit_device(&app, &id.get_value(), "Import 3D model", |d| {
-                        let mut m = d.model.clone().unwrap_or(Model3d { body: Body::Box, size: Point::new(mm(5.0), mm(5.0)), height: mm(2.0), standoff: 0, color: 0x808080, offset: Point::ZERO });
+                        let mut m = d.model.clone().unwrap_or(Model3d {
+                            body: Body::Box,
+                            size: Point::new(mm(5.0), mm(5.0)),
+                            height: mm(2.0),
+                            standoff: 0,
+                            color: 0x808080,
+                            offset: Point::ZERO,
+                        });
                         m.body = body;
                         d.model = Some(m);
                     });

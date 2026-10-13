@@ -218,25 +218,66 @@ fn About() -> impl IntoView {
 #[component]
 fn Fabrication() -> impl IntoView {
     let app = use_app();
-    let fab = RwSignal::new(match app.settings.with_untracked(|s| s.fab.clone()).as_str() {
-        "pcbway" => Fab::Pcbway,
-        "oshpark" => Fab::Oshpark,
-        "eurocircuits" => Fab::Eurocircuits,
-        "generic" => Fab::Generic,
-        _ => Fab::Jlcpcb,
-    });
+    let fab = RwSignal::new(
+        match app.settings.with_untracked(|s| s.fab.clone()).as_str() {
+            "pcbway" => Fab::Pcbway,
+            "oshpark" => Fab::Oshpark,
+            "eurocircuits" => Fab::Eurocircuits,
+            "generic" => Fab::Generic,
+            _ => Fab::Jlcpcb,
+        },
+    );
     let board = actions::board_id(&app);
-    let base = app.project.with_untracked(|p| p.name.chars().map(|c| if c.is_alphanumeric() || c == '-' { c } else { '_' }).collect::<String>());
-    let base = StoredValue::new(if base.is_empty() { "board".to_string() } else { base });
-    let check = app.project.with_untracked(|p| {
-        board.and_then(|b| p.board(b)).map(|bd| easypro_core::drc::run(&bd.pcb, &p.library, app.unit()))
-    }).unwrap_or_default();
-    let errors = check.iter().filter(|i| i.severity == easypro_core::check::Severity::Error).count();
-    let unrouted = check.iter().filter(|i| i.message.contains("unrouted")).count();
-    let check_class = if errors > 0 { "check bad" } else { "check good" };
+    let base = app.project.with_untracked(|p| {
+        p.name
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>()
+    });
+    let base = StoredValue::new(if base.is_empty() {
+        "board".to_string()
+    } else {
+        base
+    });
+    let check = app
+        .project
+        .with_untracked(|p| {
+            board
+                .and_then(|b| p.board(b))
+                .map(|bd| easypro_core::drc::run(&bd.pcb, &p.library, app.unit()))
+        })
+        .unwrap_or_default();
+    let errors = check
+        .iter()
+        .filter(|i| i.severity == easypro_core::check::Severity::Error)
+        .count();
+    let unrouted = check
+        .iter()
+        .filter(|i| i.message.contains("unrouted"))
+        .count();
+    let check_class = if errors > 0 {
+        "check bad"
+    } else {
+        "check good"
+    };
     let files = Memo::new(move |_| {
         let f = fab.get();
-        app.project.with_untracked(|p| board.and_then(|b| p.board(b)).map(|bd| package_files(bd, &p.library, f, &base.get_value()).into_iter().map(|(n, d)| (n, d.len())).collect::<Vec<_>>())).unwrap_or_default()
+        app.project
+            .with_untracked(|p| {
+                board.and_then(|b| p.board(b)).map(|bd| {
+                    package_files(bd, &p.library, f, &base.get_value())
+                        .into_iter()
+                        .map(|(n, d)| (n, d.len()))
+                        .collect::<Vec<_>>()
+                })
+            })
+            .unwrap_or_default()
     });
     let download = move |_| {
         let f = fab.get_untracked();
@@ -248,7 +289,11 @@ fn Fabrication() -> impl IntoView {
             Fab::Generic => "generic",
         };
         set_settings(&app, |s| s.fab = key.into());
-        let bytes = app.project.with_untracked(|p| board.and_then(|b| p.board(b)).map(|bd| package_zip(bd, &p.library, f, &base.get_value())));
+        let bytes = app.project.with_untracked(|p| {
+            board
+                .and_then(|b| p.board(b))
+                .map(|bd| package_zip(bd, &p.library, f, &base.get_value()))
+        });
         if let Some(bytes) = bytes {
             let name = format!("{}-{}-fab.zip", base.get_value(), key);
             js::download(&name, &bytes, "application/zip");
@@ -308,7 +353,9 @@ fn RuleField(label: &'static str, nm: i64, on_set: impl Fn(i64) + 'static) -> im
 }
 
 fn edit_rules(app: &AppState, f: impl FnOnce(&mut easypro_core::pcb::DesignRules)) {
-    let Some(b) = actions::board_id(app) else { return };
+    let Some(b) = actions::board_id(app) else {
+        return;
+    };
     app.edit("Design rules", |p| {
         if let Some(bd) = p.board_mut(b) {
             f(&mut bd.pcb.rules);
@@ -322,7 +369,9 @@ fn Rules() -> impl IntoView {
     let rules = Memo::new(move |_| {
         app.rev.track();
         let b = actions::board_id(&app);
-        app.project.with_untracked(|p| b.and_then(|b| p.board(b)).map(|bd| bd.pcb.rules.clone())).unwrap_or_default()
+        app.project
+            .with_untracked(|p| b.and_then(|b| p.board(b)).map(|bd| bd.pcb.rules.clone()))
+            .unwrap_or_default()
     });
     view! {
         <Modal title="Design Rules".into() wide=true>
@@ -382,7 +431,10 @@ fn Rules() -> impl IntoView {
 fn BoardSetup() -> impl IntoView {
     let app = use_app();
     let b = actions::board_id(&app);
-    let pcb = app.project.with_untracked(|p| b.and_then(|b| p.board(b)).map(|bd| bd.pcb.clone())).unwrap_or_default();
+    let pcb = app
+        .project
+        .with_untracked(|p| b.and_then(|b| p.board(b)).map(|bd| bd.pcb.clone()))
+        .unwrap_or_default();
     let edit = move |label: &str, f: Box<dyn FnOnce(&mut easypro_core::pcb::Pcb)>| {
         if let Some(b) = b {
             app.edit(label, |p| {
@@ -394,7 +446,15 @@ fn BoardSetup() -> impl IntoView {
             });
         }
     };
-    let masks = [("Green", 0x1f6b3au32), ("Black", 0x15171a), ("Blue", 0x1d3f8f), ("Red", 0x9a1c1c), ("White", 0xe8e8e8), ("Purple", 0x4b2a7a), ("Yellow", 0xc8a21a)];
+    let masks = [
+        ("Green", 0x1f6b3au32),
+        ("Black", 0x15171a),
+        ("Blue", 0x1d3f8f),
+        ("Red", 0x9a1c1c),
+        ("White", 0xe8e8e8),
+        ("Purple", 0x4b2a7a),
+        ("Yellow", 0xc8a21a),
+    ];
     view! {
         <Modal title="Board Setup".into()>
             <div class="form">
@@ -436,7 +496,11 @@ fn History() -> impl IntoView {
         let key = app.key.get_untracked();
         let p = app.project.get_untracked();
         let l = label.get_untracked();
-        let l = if l.trim().is_empty() { "Snapshot".to_string() } else { l };
+        let l = if l.trim().is_empty() {
+            "Snapshot".to_string()
+        } else {
+            l
+        };
         spawn_local(async move {
             let _ = storage::snapshot(&key, &p, &l).await;
             label.set(String::new());
@@ -497,14 +561,26 @@ pub fn parse_pin_list(text: &str) -> Vec<(String, String, PinKind)> {
         .map(|l| l.trim())
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
         .filter_map(|l| {
-            let parts: Vec<&str> = l.split(|c: char| c == '\t' || c == ',' || c == ';' || c.is_whitespace()).filter(|s| !s.is_empty()).collect();
+            let parts: Vec<&str> = l
+                .split(|c: char| c == '\t' || c == ',' || c == ';' || c.is_whitespace())
+                .filter(|s| !s.is_empty())
+                .collect();
             match parts.as_slice() {
                 [num] => Some((num.to_string(), num.to_string(), PinKind::Passive)),
                 [num, name] => {
-                    let kind = if name.to_uppercase().contains("GND") || name.to_uppercase().starts_with("VCC") || name.to_uppercase().starts_with("VDD") { PinKind::PowerIn } else { PinKind::Bidirectional };
+                    let kind = if name.to_uppercase().contains("GND")
+                        || name.to_uppercase().starts_with("VCC")
+                        || name.to_uppercase().starts_with("VDD")
+                    {
+                        PinKind::PowerIn
+                    } else {
+                        PinKind::Bidirectional
+                    };
                     Some((num.to_string(), name.to_string(), kind))
                 }
-                [num, name, kind, ..] => Some((num.to_string(), name.to_string(), parse_kind(kind))),
+                [num, name, kind, ..] => {
+                    Some((num.to_string(), name.to_string(), parse_kind(kind)))
+                }
                 [] => None,
             }
         })
@@ -519,8 +595,18 @@ fn IcWizard() -> impl IntoView {
     let footprint = RwSignal::new("fp:SOIC-8".to_string());
     let pins = RwSignal::new("1 VCC power\n2 SDA io\n3 SCL in\n4 GND power\n5 INT out\n6 NC nc\n7 EN in\n8 VOUT power_out".to_string());
     let fps: Vec<(String, String)> = {
-        let mut v: Vec<(String, String)> = easypro_core::builtin::library().footprints.values().map(|f| (f.id.clone(), f.name.clone())).collect();
-        v.extend(app.project.with_untracked(|p| p.library.footprints.values().map(|f| (f.id.clone(), f.name.clone())).collect::<Vec<_>>()));
+        let mut v: Vec<(String, String)> = easypro_core::builtin::library()
+            .footprints
+            .values()
+            .map(|f| (f.id.clone(), f.name.clone()))
+            .collect();
+        v.extend(app.project.with_untracked(|p| {
+            p.library
+                .footprints
+                .values()
+                .map(|f| (f.id.clone(), f.name.clone()))
+                .collect::<Vec<_>>()
+        }));
         v.sort_by(|a, b| a.1.cmp(&b.1));
         v.dedup();
         v
@@ -529,9 +615,21 @@ fn IcWizard() -> impl IntoView {
     let preview = Memo::new(move |_| {
         let list = parsed.get();
         let half = list.len().div_ceil(2);
-        let refs: Vec<(&str, &str, PinKind)> = list.iter().map(|(a, b, k)| (a.as_str(), b.as_str(), *k)).collect();
-        let sym = easypro_core::builtin::symbols::ic_box("sym:preview", &name.get(), &refs[..half], &refs[half..]);
-        easypro_export::svg::scene_to_svg(&easypro_core::scene::symbol_scene(&sym, &easypro_core::scene::SchTheme::LIGHT), None, mm(1.5))
+        let refs: Vec<(&str, &str, PinKind)> = list
+            .iter()
+            .map(|(a, b, k)| (a.as_str(), b.as_str(), *k))
+            .collect();
+        let sym = easypro_core::builtin::symbols::ic_box(
+            "sym:preview",
+            &name.get(),
+            &refs[..half],
+            &refs[half..],
+        );
+        easypro_export::svg::scene_to_svg(
+            &easypro_core::scene::symbol_scene(&sym, &easypro_core::scene::SchTheme::LIGHT),
+            None,
+            mm(1.5),
+        )
     });
     let create = move |_| {
         let list = parsed.get_untracked();
@@ -540,18 +638,52 @@ fn IcWizard() -> impl IntoView {
             return;
         }
         let nm = name.get_untracked();
-        let slug: String = nm.chars().map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '-' }).collect();
+        let slug: String = nm
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() {
+                    c.to_ascii_lowercase()
+                } else {
+                    '-'
+                }
+            })
+            .collect();
         let fp = footprint.get_untracked();
         let mut dev_id = String::new();
         app.edit("IC wizard", |p| {
-            let sid = (1..).map(|n| if n == 1 { format!("sym:{slug}") } else { format!("sym:{slug}-{n}") }).find(|i| !p.library.symbols.contains_key(i)).unwrap();
-            dev_id = (1..).map(|n| if n == 1 { format!("dev:{slug}") } else { format!("dev:{slug}-{n}") }).find(|i| !p.library.devices.contains_key(i)).unwrap();
+            let sid = (1..)
+                .map(|n| {
+                    if n == 1 {
+                        format!("sym:{slug}")
+                    } else {
+                        format!("sym:{slug}-{n}")
+                    }
+                })
+                .find(|i| !p.library.symbols.contains_key(i))
+                .unwrap();
+            dev_id = (1..)
+                .map(|n| {
+                    if n == 1 {
+                        format!("dev:{slug}")
+                    } else {
+                        format!("dev:{slug}-{n}")
+                    }
+                })
+                .find(|i| !p.library.devices.contains_key(i))
+                .unwrap();
             let half = list.len().div_ceil(2);
-            let refs: Vec<(&str, &str, PinKind)> = list.iter().map(|(a, b, k)| (a.as_str(), b.as_str(), *k)).collect();
-            let sym = easypro_core::builtin::symbols::ic_box(&sid, &nm, &refs[..half], &refs[half..]);
+            let refs: Vec<(&str, &str, PinKind)> = list
+                .iter()
+                .map(|(a, b, k)| (a.as_str(), b.as_str(), *k))
+                .collect();
+            let sym =
+                easypro_core::builtin::symbols::ic_box(&sid, &nm, &refs[..half], &refs[half..]);
             p.library.add_symbol(sym);
             if let Some(f) = easypro_core::builtin::library().footprints.get(&fp) {
-                p.library.footprints.entry(f.id.clone()).or_insert_with(|| f.clone());
+                p.library
+                    .footprints
+                    .entry(f.id.clone())
+                    .or_insert_with(|| f.clone());
             }
             p.library.add_device(Device {
                 id: dev_id.clone(),
