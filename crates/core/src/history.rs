@@ -65,6 +65,11 @@ impl<T: Clone> History<T> {
         self.redo.last().map(|(l, _)| l.as_str())
     }
 
+    /// Undo step labels, most recent first.
+    pub fn undo_labels(&self) -> Vec<String> {
+        self.undo.iter().rev().map(|(l, _)| l.clone()).collect()
+    }
+
     pub fn clear(&mut self) {
         self.undo.clear();
         self.redo.clear();
@@ -90,6 +95,18 @@ mod tests {
         assert!(h.undo(&mut doc).is_none());
         assert_eq!(h.redo(&mut doc).as_deref(), Some("set 2"));
         assert_eq!(doc, 2);
+    }
+
+    #[test]
+    fn labels_are_newest_first() {
+        let mut h = History::new(5);
+        let mut doc = 0;
+        h.push("a", doc);
+        doc = 1;
+        h.push("b", doc);
+        assert_eq!(h.undo_labels(), vec!["b", "a"]);
+        h.undo(&mut doc);
+        assert_eq!(h.undo_labels(), vec!["a"]);
     }
 
     #[test]
