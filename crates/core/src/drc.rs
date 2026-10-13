@@ -289,6 +289,8 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
         }
     }
 
+    placement_checks(pcb, lib, &mut out);
+
     // Connectivity.
     let conn = analyze_items(&items);
     for (net, missing) in &conn.unrouted {
@@ -303,6 +305,126 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
 
     sort(&mut out);
     out
+}
+
+/// Parts sitting on top of each other, and silkscreen printed over
+/// exposed copper (fabs clip it, which mangles outlines and text).
+fn placement_checks(pcb: &Pcb, lib: &Library, out: &mut Vec<Issue>) {
+    use crate::layer::{Layer, Side};
+    use crate::shape::Shape;
+    struct Placed<'a> {
+        c: &'a crate::pcb::PcbComponent,
+        pads: Vec<(Hull, bool)>,
+        body: Rect,
+        silk: Vec<Hull>,
+    }
+    let mut placed = Vec::new();
+    for c in &pcb.components {
+        let Some(fp) = lib.footprints.get(&c.footprint) else {
+            continue;
+        };
+        let tf = c.transform();
+        let pads: Vec<(Hull, bool)> = fp
+            .pads
+            .iter()
+            .filter(|p| !matches!(p.kind, PadKind::Npth { .. }))
+            .map(|p| (p.hull(&tf), matches!(p.kind, PadKind::Tht { .. })))
+            .collect();
+        let body = pads.iter().fold(Rect::EMPTY, |r, (h, _)| r.union(h.bbox()));
+        let mut silk = Vec::new();
+        for g in fp.graphics.iter().filter(|g| g.layer == Layer::TopSilk) {
+            let w = |s: &Shape| match s {
+                Shape::Line { width, .. }
+                | Shape::Polyline { width, .. }
+                | Shape::Rect { width, .. }
+                | Shape::Polygon { width, .. }
+                | Shape::Arc { width, .. }
+                | Shape::Circle { width, .. } => *width,
+                Shape::Text { .. } => 0,
+            };
+            let shape = g.shape.transformed(&tf);
+            let hw = w(&shape) / 2;
+            let pts: Vec<Point> = match &shape {
+                Shape::Line { a, b, .. } => vec![*a, *b],
+                Shape::Polyline { points, .. } => points.clone(),
+                Shape::Rect { a, b, .. } => {
+                    let mut v = Rect::new(*a, *b).corners().to_vec();
+                    v.push(v[0]);
+                    v
+                }
+                _ => continue,
+            };
+            for s in pts.windows(2) {
+                silk.push(Hull::capsule(s[0], s[1], hw));
+            }
+        }
+        placed.push(Placed {
+            c,
+            pads,
+            body,
+            silk,
+        });
+    }
+    for i in 0..placed.len() {
+        for j in 0..placed.len() {
+            if i == j {
+                continue;
+            }
+            let (a, b) = (&placed[i], &placed[j]);
+            if i < j
+                && a.c.side == b.c.side
+                && !a.body.is_empty()
+                && !b.body.is_empty()
+                && a.body.intersects(&b.body)
+            {
+                let overlap = Rect::new(
+                    Point::new(
+                        a.body.min.x.max(b.body.min.x),
+                        a.body.min.y.max(b.body.min.y),
+                    ),
+                    Point::new(
+                        a.body.max.x.min(b.body.max.x),
+                        a.body.max.y.min(b.body.max.y),
+                    ),
+                );
+                if overlap.width() > 50_000 && overlap.height() > 50_000 {
+                    out.push(
+                        Issue::new(
+                            Severity::Warning,
+                            format!("{} overlaps {}", a.c.designator, b.c.designator),
+                        )
+                        .at(overlap.center())
+                        .with(a.c.id)
+                        .with(b.c.id),
+                    );
+                }
+            }
+            // Silk of `a` (top side only for now) over exposed pads of `b`.
+            if a.c.side == Side::Top
+                && (b.c.side == Side::Top || b.pads.iter().any(|(_, tht)| *tht))
+            {
+                let hit = a.silk.iter().find_map(|s| {
+                    b.pads
+                        .iter()
+                        .find(|(p, _)| s.distance(p) <= 0.0)
+                        .map(|(p, _)| (s, p))
+                });
+                if let Some((_, p)) = hit {
+                    out.push(
+                        Issue::new(
+                            Severity::Warning,
+                            format!(
+                                "Silkscreen of {} is printed over a pad of {}",
+                                a.c.designator, b.c.designator
+                            ),
+                        )
+                        .at(Rect::from_points(p.points.iter().copied()).center())
+                        .with(a.c.id),
+                    );
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -354,6 +476,39 @@ mod tests {
         assert!(m.iter().any(|s| s.contains("outside the board")), "{m:#?}");
         assert!(m.iter().any(|s| s.starts_with("Via drill")), "{m:#?}");
         assert!(m.iter().any(|s| s.starts_with("Via annular")), "{m:#?}");
+    }
+
+    #[test]
+    fn overlapping_parts_and_silk_are_reported() {
+        let mut p = crate::examples::blinker();
+        let lib = p.library.clone();
+        let pcb = &mut p.boards[0].pcb;
+        let u1 = pcb
+            .components
+            .iter()
+            .find(|c| c.designator == "U1")
+            .unwrap()
+            .pos;
+        pcb.components
+            .iter_mut()
+            .find(|c| c.designator == "C3")
+            .unwrap()
+            .pos = u1 + Point::new(mm(2.7), mm(0.6));
+        let issues = run(pcb, &lib, Unit::Mm);
+        let m: Vec<_> = issues.iter().map(|i| i.message.as_str()).collect();
+        assert!(m.iter().any(|s| s.contains("overlaps")), "{m:#?}");
+    }
+
+    #[test]
+    fn example_has_no_placement_warnings() {
+        let p = crate::examples::blinker();
+        let issues = run(&p.boards[0].pcb, &p.library, Unit::Mm);
+        assert!(
+            !issues
+                .iter()
+                .any(|i| i.message.contains("overlaps") || i.message.contains("Silkscreen")),
+            "{issues:#?}"
+        );
     }
 
     #[test]
