@@ -1460,6 +1460,23 @@ pub fn print_schematic(app: &AppState) {
     }
 }
 
+pub fn export_assembly(app: &AppState) {
+    use easypro_core::layer::Side;
+    let base = file_base(app);
+    let files = with_board(app, |b, lib| {
+        [Side::Top, Side::Bottom]
+            .into_iter()
+            .filter(|s| *s == Side::Top || b.pcb.components.iter().any(|c| c.side == *s))
+            .map(|s| (s, easypro_export::assembly::assembly_svg(&b.pcb, lib, s)))
+            .collect::<Vec<_>>()
+    });
+    for (side, svg) in files.unwrap_or_default() {
+        let name = format!("{base}-assembly-{}.svg", if side == Side::Top { "top" } else { "bottom" });
+        js::download(&name, svg.as_bytes(), "image/svg+xml");
+        app.ok(format!("Exported {name}"));
+    }
+}
+
 pub fn export_json(app: &AppState) {
     let json = app.project.with_untracked(|p| p.to_json());
     js::download(
