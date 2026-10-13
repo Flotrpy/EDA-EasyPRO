@@ -62,11 +62,51 @@ pub fn kicad_netlist(sch: &Schematic, lib: &Library, source: &str) -> String {
     out
 }
 
+/// One row per pin: net, designator, pin number, pin name. Handy for
+/// spreadsheets and test fixtures.
+pub fn csv_netlist(sch: &Schematic, lib: &Library) -> String {
+    let conn = connectivity(sch, lib);
+    let mut out = String::from("Net,Designator,Pin,Pin Name\n");
+    let mut nets: Vec<_> = conn.nets.iter().collect();
+    nets.sort_by(|a, b| natural_cmp(&a.name, &b.name));
+    for net in nets {
+        for n in &net.nodes {
+            let row = [
+                net.name.as_str(),
+                n.designator.as_str(),
+                n.pin.as_str(),
+                n.pin_name.as_str(),
+            ];
+            out += &row
+                .iter()
+                .map(|f| crate::bom::csv_field(f))
+                .collect::<Vec<_>>()
+                .join(",");
+            out.push('\n');
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use easypro_core::examples::blinker;
     use easypro_core::sexpr::parse;
+
+    #[test]
+    fn csv_netlist_lists_every_connected_pin() {
+        let p = blinker();
+        let csv = csv_netlist(&p.boards[0].schematic, &p.library);
+        assert!(csv.starts_with("Net,Designator,Pin,Pin Name"));
+        assert!(csv.lines().any(|l| l.starts_with("GND,U1,1,GND")), "{csv}");
+        let pins: usize = easypro_core::netlist::connectivity(&p.boards[0].schematic, &p.library)
+            .nets
+            .iter()
+            .map(|n| n.nodes.len())
+            .sum();
+        assert_eq!(csv.lines().count(), pins + 1);
+    }
 
     #[test]
     fn kicad_netlist_parses_back() {
