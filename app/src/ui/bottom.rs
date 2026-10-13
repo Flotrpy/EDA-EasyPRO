@@ -25,6 +25,13 @@ pub fn BottomPanel() -> impl IntoView {
                     <label class="chk small"><input type="checkbox" prop:checked=move || show_info.get() on:change=move |ev| show_info.set(event_target_checked(&ev)) />"Info"</label>
                 })}
                 <span class="bt-title">{move || if app.bottom_tab.get() == BottomTab::Issues { app.issues_title.get() } else { String::new() }}</span>
+                {move || (app.bottom_tab.get() == BottomTab::Issues && !app.issues_title.get().is_empty()).then(|| view! {
+                    <button class="icon" title="Save report as text" on:click=move |_| {
+                        let text = easypro_core::check::report(&app.issues_title.get_untracked(), &app.issues.get_untracked(), app.unit());
+                        let name = format!("{}-report.txt", app.project.with_untracked(|p| p.name.clone()));
+                        crate::js::download(&name, text.as_bytes(), "text/plain");
+                    }><Icon name="download" /></button>
+                })}
                 <button class="icon" title="Clear" on:click=move |_| match app.bottom_tab.get_untracked() { BottomTab::Log => app.log.set(vec![]), BottomTab::Issues => { app.issues.set(vec![]); app.issues_title.set(String::new()); } }><Icon name="trash" /></button>
                 <button class="icon" title="Hide panel" on:click=move |_| app.show_bottom.set(false)><Icon name="x" /></button>
             </div>
