@@ -757,6 +757,25 @@ fn set_timeout_focus(id: &'static str) {
     );
 }
 
+fn step_tab(app: &AppState, d: isize) {
+    let n = app.tabs.with_untracked(|t| t.len()) as isize;
+    let i = (app.active.get_untracked() as isize + d).rem_euclid(n.max(1)) as usize;
+    let t = app.tabs.with_untracked(|t| t[i].clone());
+    app.open(t);
+}
+
+pub fn next_tab(app: &AppState) {
+    step_tab(app, 1);
+}
+
+pub fn prev_tab(app: &AppState) {
+    step_tab(app, -1);
+}
+
+pub fn close_tab(app: &AppState) {
+    app.close_tab(app.active.get_untracked());
+}
+
 pub fn palette(app: &AppState) {
     app.palette.set(true);
 }
