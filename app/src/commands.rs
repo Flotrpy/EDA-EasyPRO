@@ -126,6 +126,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("pcb.layer_top", "Active Layer: Top", "Route", "T", Pcb, "layers", a::layer_top),
     cmd!("pcb.layer_bottom", "Active Layer: Bottom", "Route", "B", Pcb, "layers", a::layer_bottom),
     cmd!("pcb.layer_next", "Next Copper Layer", "Route", "Ctrl+Alt+L", Pcb, "layers", a::layer_next),
+    cmd!("pcb.select_net", "Select Whole Net", "Route", "Ctrl+Alt+N", Pcb, "list", a::select_net),
     cmd!("pcb.rebuild", "Rebuild Copper Areas", "Route", "Shift+B", Pcb, "pour", a::rebuild_pours),
     // Symbol / footprint editor tools
     cmd!("sym.pin", "Pin", "Place", "P", Sym, "pin", a::tool_pin),

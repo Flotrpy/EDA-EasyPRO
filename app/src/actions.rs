@@ -790,6 +790,49 @@ pub fn layer_next(app: &AppState) {
     }
 }
 
+/// Select every track and via of the net under the selection.
+pub fn select_net(app: &AppState) {
+    let Some(b) = board_id(app) else { return };
+    let sel = app.selection.get_untracked();
+    let found = app.project.with_untracked(|p| {
+        let bd = p.board(b)?;
+        let pcb = &bd.pcb;
+        let net = sel.iter().find_map(|id| {
+            pcb.tracks
+                .iter()
+                .find(|t| t.id == *id)
+                .map(|t| t.net.clone())
+                .or_else(|| pcb.vias.iter().find(|v| v.id == *id).map(|v| v.net.clone()))
+                .or_else(|| {
+                    pcb.pours
+                        .iter()
+                        .find(|v| v.id == *id)
+                        .map(|v| v.net.clone())
+                })
+        })?;
+        if net.is_empty() {
+            return None;
+        }
+        let ids: Vec<Id> = pcb
+            .tracks
+            .iter()
+            .filter(|t| t.net == net)
+            .map(|t| t.id)
+            .chain(pcb.vias.iter().filter(|v| v.net == net).map(|v| v.id))
+            .collect();
+        Some((net, ids))
+    });
+    match found {
+        Some((net, ids)) => {
+            app.status
+                .set(format!("Selected {} item(s) on {net}", ids.len()));
+            app.highlight_net.set(Some(net));
+            app.selection.set(ids);
+        }
+        None => app.status.set("Select a track or via first".into()),
+    }
+}
+
 pub fn rebuild_pours(app: &AppState) {
     let Some(b) = board_id(app) else { return };
     app.edit("Rebuild copper areas", |p| {
