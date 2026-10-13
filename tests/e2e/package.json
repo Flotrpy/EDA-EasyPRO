@@ -1,0 +1,12 @@
+{
+  "name": "easypro-e2e",
+  "private": true,
+  "description": "Browser smoke test for the built EasyPRO web app",
+  "type": "module",
+  "scripts": {
+    "test": "node smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
