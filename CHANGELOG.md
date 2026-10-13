@@ -18,8 +18,9 @@ First public version.
 - Two example projects: a 555 LED blinker and a fully routed, DRC-clean
   3.3 V regulator board, both listed on the start page.
 - Via stitching, Board Info (size, area, counts, routed length per net),
-  Select Similar Parts, net length in track properties, and a DRC warning for
-  track ends that touch nothing.
+  Select Similar Parts, net length in track properties, a DRC warning for
+  track ends that touch nothing and Route → Remove Dangling Tracks to clean
+  them up, and ERC/DRC results saved as a text report.
 - IPC-D-356 test netlist, included in every fabrication package.
 - Local-first storage with autosave, files, version history and offline
   support; command palette and rebindable shortcuts; light and dark themes.

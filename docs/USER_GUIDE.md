@@ -55,7 +55,10 @@ Junction dots appear automatically where three or more connections meet.
 5. **T** / **B** switch the active layer; the layer panel on the right toggles
    visibility. Double-click a track to highlight its net; **Esc** clears it.
 6. **Design → Design Rule Check** (**Ctrl+Alt+D**). While you edit, a live
-   DRC marks rule errors with red rings.
+   DRC marks rule errors with red rings. Track ends that touch nothing are
+   reported as warnings; **Route → Remove Dangling Tracks** deletes them,
+   including whole abandoned stubs. The download button in the Issues tab
+   saves the results as a text report.
 7. **Design → Board Setup** sets layer count, thickness, mask colour, the
    board size with rounded corners, and adds M3 mounting holes. Its *Via
    stitching* row fills free board area with vias on one net (usually GND)
