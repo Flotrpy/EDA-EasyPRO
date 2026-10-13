@@ -223,6 +223,15 @@ pub fn text_strokes(
     out
 }
 
+/// Mirror strokes left-right about the vertical line through `x`. Text on
+/// the bottom of a board is drawn this way so it reads correctly on the
+/// physical board when viewed from below.
+pub fn mirror_x(strokes: &mut [Vec<Point>], x: i64) {
+    for p in strokes.iter_mut().flatten() {
+        p.x = 2 * x - p.x;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

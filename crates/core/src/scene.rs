@@ -188,6 +188,35 @@ fn text_items(
     }
 }
 
+/// Like [`shape_items`], but text is mirrored (bottom-side silkscreen).
+pub fn shape_items_bottom(shape: &Shape, color: u32, owner: Option<Id>, out: &mut Vec<Item>) {
+    match shape {
+        Shape::Text {
+            pos,
+            text,
+            size,
+            rotation,
+            align,
+        } => {
+            let w = font::stroke_width(*size);
+            let mut strokes = font::text_strokes(text, *size, *pos, *rotation, *align);
+            font::mirror_x(&mut strokes, pos.x);
+            for pts in strokes.into_iter().filter(|s| s.len() >= 2) {
+                out.push(Item {
+                    prim: Prim::Path {
+                        pts,
+                        w,
+                        closed: false,
+                    },
+                    color,
+                    owner,
+                });
+            }
+        }
+        other => shape_items(other, color, owner, out),
+    }
+}
+
 /// Lower a shape (already in world coordinates) into primitives.
 pub fn shape_items(shape: &Shape, color: u32, owner: Option<Id>, out: &mut Vec<Item>) {
     let mut push = |prim: Prim| out.push(Item { prim, color, owner });
@@ -846,12 +875,12 @@ fn footprint_items(
     for g in &fp.graphics {
         let layer = flip(g.layer);
         let mut v = Vec::new();
-        shape_items(
-            &g.shape.transformed(tf),
-            layer_color(layer, 255),
-            owner,
-            &mut v,
-        );
+        let shape = g.shape.transformed(tf);
+        if side == Side::Bottom {
+            shape_items_bottom(&shape, layer_color(layer, 255), owner, &mut v);
+        } else {
+            shape_items(&shape, layer_color(layer, 255), owner, &mut v);
+        }
         for it in v {
             scene.push(SceneLayer::Pcb(layer), it);
         }
@@ -1040,16 +1069,18 @@ pub fn pcb_scene(
             let pos = c.designator_pos(fp);
             let mut v = Vec::new();
             let size = mm(1.0);
-            text_items(
-                &c.designator,
+            let text = Shape::Text {
+                pos: pos - Point::new(0, size / 2),
+                text: c.designator.clone(),
                 size,
-                pos - Point::new(0, size / 2),
-                0.0,
-                Align::Center,
-                layer_color(silk, 255),
-                Some(c.id),
-                &mut v,
-            );
+                rotation: 0.0,
+                align: Align::Center,
+            };
+            if c.side == Side::Bottom {
+                shape_items_bottom(&text, layer_color(silk, 255), Some(c.id), &mut v);
+            } else {
+                shape_items(&text, layer_color(silk, 255), Some(c.id), &mut v);
+            }
             for it in v {
                 scene.push(SceneLayer::Pcb(silk), it);
             }
@@ -1082,7 +1113,12 @@ pub fn pcb_scene(
     }
     for g in &pcb.graphics {
         let mut v = Vec::new();
-        shape_items(&g.shape, layer_color(g.layer, 255), Some(g.id), &mut v);
+        let draw = if matches!(g.layer, Layer::BottomSilk | Layer::BottomCopper) {
+            shape_items_bottom
+        } else {
+            shape_items
+        };
+        draw(&g.shape, layer_color(g.layer, 255), Some(g.id), &mut v);
         for it in v {
             scene.push(SceneLayer::Pcb(g.layer), it);
         }
