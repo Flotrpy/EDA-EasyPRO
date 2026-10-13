@@ -8,7 +8,9 @@ use easypro_core::pick;
 use easypro_core::project::Project;
 use easypro_core::route::path90;
 use easypro_core::scene::{self, rgba, Item, Prim, SceneLayer, SchTheme};
-use easypro_core::schematic::{Annotation, Component, NetLabel, NetPort, NoConnect, PortStyle, Wire};
+use easypro_core::schematic::{
+    Annotation, Component, NetLabel, NetPort, NoConnect, PortStyle, Wire,
+};
 use easypro_core::shape::{Align, Shape};
 use easypro_core::units::mil;
 use easypro_render::gl::{GridStyle, LayerDraw};
@@ -25,11 +27,17 @@ fn kk(k: &Kind) -> (Id, usize) {
 }
 
 pub fn theme(app: &AppState) -> SchTheme {
-    if app.dark.get_untracked() { SchTheme::DARK } else { SchTheme::LIGHT }
+    if app.dark.get_untracked() {
+        SchTheme::DARK
+    } else {
+        SchTheme::LIGHT
+    }
 }
 
 fn prompt(msg: &str, default: &str) -> Option<String> {
-    let r = web_sys::window()?.prompt_with_message_and_default(msg, default).ok()??;
+    let r = web_sys::window()?
+        .prompt_with_message_and_default(msg, default)
+        .ok()??;
     let t = r.trim().to_string();
     (!t.is_empty()).then_some(t)
 }
@@ -37,10 +45,21 @@ fn prompt(msg: &str, default: &str) -> Option<String> {
 /// Suggest the next label name: "D3" after "D2", otherwise "NET1".
 fn next_label(app: &AppState, k: &Kind) -> String {
     let (b, s) = kk(k);
-    let last = app.project.with_untracked(|p| p.board(b).and_then(|bd| bd.schematic.sheets.get(s)).and_then(|sh| sh.labels.last().map(|l| l.name.clone())));
+    let last = app.project.with_untracked(|p| {
+        p.board(b)
+            .and_then(|bd| bd.schematic.sheets.get(s))
+            .and_then(|sh| sh.labels.last().map(|l| l.name.clone()))
+    });
     match last {
         Some(name) => {
-            let digits: String = name.chars().rev().take_while(|c| c.is_ascii_digit()).collect::<Vec<_>>().into_iter().rev().collect();
+            let digits: String = name
+                .chars()
+                .rev()
+                .take_while(|c| c.is_ascii_digit())
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect();
             if digits.is_empty() {
                 format!("{name}1")
             } else {
@@ -53,7 +72,13 @@ fn next_label(app: &AppState, k: &Kind) -> String {
 }
 
 impl SchHandler {
-    fn edit_sheet(&self, app: &AppState, k: &Kind, label: &str, f: impl FnOnce(&mut easypro_core::schematic::Sheet, &mut easypro_core::id::IdGen)) {
+    fn edit_sheet(
+        &self,
+        app: &AppState,
+        k: &Kind,
+        label: &str,
+        f: impl FnOnce(&mut easypro_core::schematic::Sheet, &mut easypro_core::id::IdGen),
+    ) {
         let (b, s) = kk(k);
         app.edit(label, |p| {
             let mut ids = std::mem::take(&mut p.ids);
@@ -73,7 +98,11 @@ impl SchHandler {
         let (b, s) = kk(k);
         let tol = v.tol() * 2;
         app.project
-            .with_untracked(|p| p.board(b).and_then(|bd| bd.schematic.sheets.get(s)).and_then(|sh| pick::sch_pin_near(sh, &p.library, v.raw, tol)))
+            .with_untracked(|p| {
+                p.board(b)
+                    .and_then(|bd| bd.schematic.sheets.get(s))
+                    .and_then(|sh| pick::sch_pin_near(sh, &p.library, v.raw, tol))
+            })
             .unwrap_or(v.cursor)
     }
 
@@ -82,15 +111,33 @@ impl SchHandler {
         pts.dedup();
         if pts.len() >= 2 {
             let n = pts.len();
-            self.edit_sheet(app, k, "Draw wire", |sh, ids| sh.wires.push(Wire { id: ids.fresh(), points: pts }));
-            app.status.set(format!("Wire with {} segment(s) added", n - 1));
+            self.edit_sheet(app, k, "Draw wire", |sh, ids| {
+                sh.wires.push(Wire {
+                    id: ids.fresh(),
+                    points: pts,
+                })
+            });
+            app.status
+                .set(format!("Wire with {} segment(s) added", n - 1));
         }
         v.tool = Default::default();
     }
 
     fn ghost_component(&self, app: &AppState, device: &str, at: Point) -> Component {
-        let prefix = app.project.with_untracked(|p| p.library.devices.get(device).map(|d| d.prefix.clone()).unwrap_or_else(|| "U".into()));
-        let value = app.project.with_untracked(|p| p.library.devices.get(device).map(|d| d.value.clone()).unwrap_or_default());
+        let prefix = app.project.with_untracked(|p| {
+            p.library
+                .devices
+                .get(device)
+                .map(|d| d.prefix.clone())
+                .unwrap_or_else(|| "U".into())
+        });
+        let value = app.project.with_untracked(|p| {
+            p.library
+                .devices
+                .get(device)
+                .map(|d| d.value.clone())
+                .unwrap_or_default()
+        });
         Component {
             id: Id(u64::MAX),
             device: device.to_string(),
@@ -118,17 +165,48 @@ impl Handler for SchHandler {
             let conn = easypro_core::netlist::connectivity(&bd.schematic, &p.library);
             let scene = scene::sheet_scene(sheet, &p.library, Some((&conn, s)), &th, &p.name);
             let grid_mm = app.settings.with_untracked(|st| st.sch_grid) as f64 / 1e6;
+            let content = scene
+                .layers
+                .iter()
+                .filter(|(l, _)| *l == SceneLayer::Schematic)
+                .flat_map(|(_, v)| v.iter())
+                .fold(Rect::EMPTY, |r, it| r.union(scene::prim_bbox(&it.prim)));
             Some(Built {
-                fit: sheet.frame().union(scene.bbox()),
+                fit: if content.is_empty() {
+                    sheet.frame()
+                } else {
+                    content.inflate(mil(400.0))
+                },
                 scene,
-                background: if dark { [0.118, 0.122, 0.133] } else { [1.0, 1.0, 1.0] },
+                background: if dark {
+                    [0.118, 0.122, 0.133]
+                } else {
+                    [1.0, 1.0, 1.0]
+                },
                 grid: Some(GridStyle {
                     step_mm: grid_mm,
                     lines: app.settings.with_untracked(|st| st.grid_lines),
-                    color: if dark { [0.3, 0.31, 0.34, 1.0] } else { [0.80, 0.82, 0.86, 1.0] },
-                    major: if dark { [0.36, 0.37, 0.41, 1.0] } else { [0.70, 0.72, 0.77, 1.0] },
+                    color: if dark {
+                        [0.3, 0.31, 0.34, 1.0]
+                    } else {
+                        [0.80, 0.82, 0.86, 1.0]
+                    },
+                    major: if dark {
+                        [0.36, 0.37, 0.41, 1.0]
+                    } else {
+                        [0.70, 0.72, 0.77, 1.0]
+                    },
                 }),
-                order: vec![LayerDraw { key: SceneLayer::Frame, alpha: 1.0 }, LayerDraw { key: SceneLayer::Schematic, alpha: 1.0 }],
+                order: vec![
+                    LayerDraw {
+                        key: SceneLayer::Frame,
+                        alpha: 1.0,
+                    },
+                    LayerDraw {
+                        key: SceneLayer::Schematic,
+                        alpha: 1.0,
+                    },
+                ],
             })
         })
     }
@@ -139,12 +217,21 @@ impl Handler for SchHandler {
 
     fn hit(&self, app: &AppState, k: &Kind, p: Point, tol: i64) -> Option<Id> {
         let (b, s) = kk(k);
-        app.project.with_untracked(|pr| pr.board(b).and_then(|bd| bd.schematic.sheets.get(s)).and_then(|sh| pick::sch_hit(sh, &pr.library, p, tol)))
+        app.project.with_untracked(|pr| {
+            pr.board(b)
+                .and_then(|bd| bd.schematic.sheets.get(s))
+                .and_then(|sh| pick::sch_hit(sh, &pr.library, p, tol))
+        })
     }
 
     fn in_rect(&self, app: &AppState, k: &Kind, r: Rect, crossing: bool) -> Vec<Id> {
         let (b, s) = kk(k);
-        app.project.with_untracked(|pr| pr.board(b).and_then(|bd| bd.schematic.sheets.get(s)).map(|sh| pick::sch_in_rect(sh, &pr.library, r, crossing)).unwrap_or_default())
+        app.project.with_untracked(|pr| {
+            pr.board(b)
+                .and_then(|bd| bd.schematic.sheets.get(s))
+                .map(|sh| pick::sch_in_rect(sh, &pr.library, r, crossing))
+                .unwrap_or_default()
+        })
     }
 
     fn apply_move(&self, p: &mut Project, k: &Kind, ids: &[Id], d: Point) {
@@ -155,7 +242,13 @@ impl Handler for SchHandler {
         }
     }
 
-    fn tool_down(&self, app: &AppState, k: &Kind, v: &mut View, _ev: &web_sys::PointerEvent) -> bool {
+    fn tool_down(
+        &self,
+        app: &AppState,
+        k: &Kind,
+        v: &mut View,
+        _ev: &web_sys::PointerEvent,
+    ) -> bool {
         let at = v.cursor;
         match app.tool.get_untracked() {
             Tool::Wire => {
@@ -176,10 +269,15 @@ impl Handler for SchHandler {
                 let (b, s) = kk(k);
                 let tol = v.tol();
                 let ends = app.project.with_untracked(|pr| {
-                    pr.board(b).and_then(|bd| bd.schematic.sheets.get(s)).is_some_and(|sh| {
-                        pick::sch_pin_near(sh, &pr.library, p, tol / 2).is_some()
-                            || sh.wires.iter().any(|w| w.segments().any(|(a, c)| easypro_core::geom::point_on_segment(p, a, c)))
-                    })
+                    pr.board(b)
+                        .and_then(|bd| bd.schematic.sheets.get(s))
+                        .is_some_and(|sh| {
+                            pick::sch_pin_near(sh, &pr.library, p, tol / 2).is_some()
+                                || sh.wires.iter().any(|w| {
+                                    w.segments()
+                                        .any(|(a, c)| easypro_core::geom::point_on_segment(p, a, c))
+                                })
+                        })
                 });
                 if ends && v.tool.points.len() > 2 {
                     self.finish_wire(app, k, v);
@@ -190,26 +288,59 @@ impl Handler for SchHandler {
                 let p = self.snap_pin(app, k, v);
                 let name = prompt("Net label name", &next_label(app, k));
                 if let Some(name) = name {
-                    self.edit_sheet(app, k, "Add net label", |sh, ids| sh.labels.push(NetLabel { id: ids.fresh(), name, pos: p, rotation: 0.0 }));
+                    self.edit_sheet(app, k, "Add net label", |sh, ids| {
+                        sh.labels.push(NetLabel {
+                            id: ids.fresh(),
+                            name,
+                            pos: p,
+                            rotation: 0.0,
+                        })
+                    });
                 }
                 true
             }
             Tool::Power | Tool::Ground => {
                 let ground = app.tool.get_untracked() == Tool::Ground;
                 let p = self.snap_pin(app, k, v);
-                let (name, style) = if ground { ("GND", PortStyle::Ground) } else { ("VCC", PortStyle::Power) };
-                self.edit_sheet(app, k, "Add power flag", |sh, ids| sh.ports.push(NetPort { id: ids.fresh(), name: name.into(), pos: p, style, rotation: 0.0 }));
+                let (name, style) = if ground {
+                    ("GND", PortStyle::Ground)
+                } else {
+                    ("VCC", PortStyle::Power)
+                };
+                self.edit_sheet(app, k, "Add power flag", |sh, ids| {
+                    sh.ports.push(NetPort {
+                        id: ids.fresh(),
+                        name: name.into(),
+                        pos: p,
+                        style,
+                        rotation: 0.0,
+                    })
+                });
                 true
             }
             Tool::NoConnect => {
                 let p = self.snap_pin(app, k, v);
-                self.edit_sheet(app, k, "Add no-connect", |sh, ids| sh.no_connects.push(NoConnect { id: ids.fresh(), pos: p }));
+                self.edit_sheet(app, k, "Add no-connect", |sh, ids| {
+                    sh.no_connects.push(NoConnect {
+                        id: ids.fresh(),
+                        pos: p,
+                    })
+                });
                 true
             }
             Tool::Text => {
                 if let Some(text) = prompt("Text", "Note") {
                     self.edit_sheet(app, k, "Add text", |sh, ids| {
-                        sh.annotations.push(Annotation { id: ids.fresh(), shape: Shape::Text { pos: at, text, size: scene::LABEL_TEXT, rotation: 0.0, align: Align::Left } })
+                        sh.annotations.push(Annotation {
+                            id: ids.fresh(),
+                            shape: Shape::Text {
+                                pos: at,
+                                text,
+                                size: scene::LABEL_TEXT,
+                                rotation: 0.0,
+                                align: Align::Left,
+                            },
+                        })
                     });
                 }
                 true
@@ -226,10 +357,16 @@ impl Handler for SchHandler {
                             sh.components.push(c.clone());
                         }
                         easypro_core::sync::annotate(bd, &lib, false);
-                        placed = bd.schematic.find_component(c.id).map(|x| x.designator.clone()).unwrap_or_default();
+                        placed = bd
+                            .schematic
+                            .find_component(c.id)
+                            .map(|x| x.designator.clone())
+                            .unwrap_or_default();
                     }
                 });
-                app.status.set(format!("Placed {placed}. Click to place another, Esc to stop."));
+                app.status.set(format!(
+                    "Placed {placed}. Click to place another, Esc to stop."
+                ));
                 true
             }
             _ => false,
@@ -276,10 +413,26 @@ impl Handler for SchHandler {
                     let mut pts = v.tool.points.clone();
                     let target = self.snap_pin(app, k, v);
                     pts.extend(path90(*last, target, !v.tool.alt).into_iter().skip(1));
-                    items.push(Item { prim: Prim::Path { pts, w: 152_400, closed: false }, color: th.wire, owner: None });
+                    items.push(Item {
+                        prim: Prim::Path {
+                            pts,
+                            w: 152_400,
+                            closed: false,
+                        },
+                        color: th.wire,
+                        owner: None,
+                    });
                 }
                 let p = self.snap_pin(app, k, v);
-                items.push(Item { prim: Prim::Ring { c: p, r: mil(25.0), w: 0 }, color: th.wire, owner: None });
+                items.push(Item {
+                    prim: Prim::Ring {
+                        c: p,
+                        r: mil(25.0),
+                        w: 0,
+                    },
+                    color: th.wire,
+                    owner: None,
+                });
             }
             Tool::Place(device) => {
                 let c = self.ghost_component(app, &device, v.cursor);
@@ -291,7 +444,15 @@ impl Handler for SchHandler {
             }
             Tool::Power | Tool::Ground | Tool::Label | Tool::NoConnect => {
                 let p = self.snap_pin(app, k, v);
-                items.push(Item { prim: Prim::Ring { c: p, r: mil(25.0), w: 0 }, color: rgba(0x3a90ff, 255), owner: None });
+                items.push(Item {
+                    prim: Prim::Ring {
+                        c: p,
+                        r: mil(25.0),
+                        w: 0,
+                    },
+                    color: rgba(0x3a90ff, 255),
+                    owner: None,
+                });
             }
             _ => {}
         }
@@ -300,7 +461,16 @@ impl Handler for SchHandler {
 
     fn open_item(&self, app: &AppState, k: &Kind, id: Id) {
         let (b, s) = kk(k);
-        let label = app.project.with_untracked(|p| p.board(b).and_then(|bd| bd.schematic.sheets.get(s)).and_then(|sh| sh.labels.iter().find(|l| l.id == id).map(|l| l.name.clone())));
+        let label = app.project.with_untracked(|p| {
+            p.board(b)
+                .and_then(|bd| bd.schematic.sheets.get(s))
+                .and_then(|sh| {
+                    sh.labels
+                        .iter()
+                        .find(|l| l.id == id)
+                        .map(|l| l.name.clone())
+                })
+        });
         if let Some(old) = label {
             if let Some(name) = prompt("Rename net label", &old) {
                 self.edit_sheet(app, k, "Rename net label", |sh, _| {
