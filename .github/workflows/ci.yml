@@ -32,6 +32,14 @@ jobs:
         run: |
           cargo run -p easypro-export --example fab_package -- blinker-fab.zip jlcpcb 555
           cargo run -p easypro-export --example fab_package -- regulator-fab.zip pcbway 3.3v
+      - name: Upload sample fabrication packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-fab-packages
+          path: |
+            blinker-fab.zip
+            regulator-fab.zip
+          retention-days: 14
 
   build:
     name: Build web app and smoke test
