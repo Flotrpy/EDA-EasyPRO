@@ -291,6 +291,7 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
 
     placement_checks(pcb, lib, &mut out);
     silk_checks(pcb, &mut out, &fmt);
+    dangling_tracks(pcb, &items, &mut out);
 
     // Connectivity.
     let conn = analyze_items(&items);
@@ -306,6 +307,31 @@ pub fn run(pcb: &Pcb, lib: &Library, unit: Unit) -> Vec<Issue> {
 
     sort(&mut out);
     out
+}
+
+/// Track ends that touch no other copper: leftovers from deleting parts or
+/// abandoned routes, which act as antennas and confuse the fab netlist.
+fn dangling_tracks(pcb: &Pcb, items: &[CopperItem], out: &mut Vec<Issue>) {
+    let boxes: Vec<Rect> = items.iter().map(|it| it.hull.bbox()).collect();
+    for t in &pcb.tracks {
+        for end in [t.a, t.b] {
+            let probe = Hull::circle(end, t.width / 2);
+            let touched = items.iter().zip(&boxes).any(|(it, bb)| {
+                !matches!(it.what, CopperRef::Track(id) if id == t.id)
+                    && it.layer.shares_copper(t.layer)
+                    && bb.inflate(t.width).contains(end)
+                    && it.hull.distance(&probe) <= 0.0
+            });
+            if !touched {
+                out.push(
+                    Issue::new(Severity::Warning, "Track end is not connected to anything")
+                        .at(end)
+                        .with(t.id),
+                );
+                break;
+            }
+        }
+    }
 }
 
 /// Board silkscreen that most fabs cannot print legibly.
@@ -599,9 +625,25 @@ mod tests {
 
     #[test]
     fn clean_board_passes() {
-        let p = Project::new("t");
+        let p = crate::examples::regulator();
+        assert!(run(&p.boards[0].pcb, &p.library, Unit::Mm).is_empty());
+    }
+
+    #[test]
+    fn dangling_track_ends_are_flagged() {
+        let p = crate::examples::regulator();
         let mut pcb = p.boards[0].pcb.clone();
-        pcb.tracks.push(track(100, 10.0, 10.0, 30.0, 10.0, "A"));
-        assert!(run(&pcb, &p.library, Unit::Mm).is_empty());
+        // Lone stub off the VIN track, plus a floating segment.
+        pcb.tracks.push(track(900, 10.0, 12.27, 10.0, 15.0, "VIN"));
+        pcb.tracks.push(track(901, 30.0, 20.0, 34.0, 20.0, ""));
+        let issues = run(&pcb, &p.library, Unit::Mm);
+        let dangling: Vec<_> = issues
+            .iter()
+            .filter(|i| i.message.starts_with("Track end"))
+            .collect();
+        assert_eq!(dangling.len(), 2, "{issues:#?}");
+        assert_eq!(dangling[0].objects, vec![Id(900)]);
+        assert_eq!(dangling[0].pos, Some(Point::new(mm(10.0), mm(15.0))));
+        assert!(dangling.iter().all(|i| i.severity == Severity::Warning));
     }
 }
