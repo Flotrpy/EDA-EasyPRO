@@ -35,18 +35,26 @@ fn tool_of(id: &str) -> Option<Tool> {
 }
 
 #[component]
-fn Btn(id: &'static str, #[prop(optional)] text: bool) -> impl IntoView {
+fn Btn(
+    id: &'static str,
+    #[prop(optional)] text: bool,
+    #[prop(optional)] label: Option<&'static str>,
+) -> impl IntoView {
     let app = use_app();
     let c = commands::find(id).expect("command");
     let active = move || tool_of(id).is_some_and(|t| app.tool.get() == t);
     let title = move || {
         let k = commands::key_for(&app, c);
-        if k.is_empty() { c.label.to_string() } else { format!("{} ({k})", c.label) }
+        if k.is_empty() {
+            c.label.to_string()
+        } else {
+            format!("{} ({k})", c.label)
+        }
     };
     view! {
         <button class="tb" class:active=active title=title aria-label=c.label on:click=move |_| commands::run(&app, id)>
             <Icon name=c.icon />
-            {text.then(|| view! { <span class="tb-text">{c.label}</span> })}
+            {(text || label.is_some()).then(|| view! { <span class="tb-text">{label.unwrap_or(c.label)}</span> })}
         </button>
     }
 }
@@ -57,7 +65,11 @@ pub fn Toolbar() -> impl IntoView {
     let kind = Memo::new(move |_| app.tab().kind());
     let board_layers = Memo::new(move |_| {
         let b = app.tab().board();
-        app.project.with(|p| b.and_then(|b| p.board(b)).map(|bd| bd.pcb.copper_stack()).unwrap_or_default())
+        app.project.with(|p| {
+            b.and_then(|b| p.board(b))
+                .map(|bd| bd.pcb.copper_stack())
+                .unwrap_or_default()
+        })
     });
     view! {
         <div class="toolbar">
@@ -88,8 +100,8 @@ pub fn Toolbar() -> impl IntoView {
                     <Btn id="edit.delete" />
                     <span class="sep"></span>
                     <Btn id="design.annotate" />
-                    <Btn id="design.erc" text=true />
-                    <Btn id="design.update_pcb" text=true />
+                    <Btn id="design.erc" label="ERC" />
+                    <Btn id="design.update_pcb" label="Update PCB" />
                 }.into_any(),
                 "pcb" => view! {
                     <Btn id="tool.select" />
@@ -118,8 +130,8 @@ pub fn Toolbar() -> impl IntoView {
                     <span class="swatch" style=move || format!("background: #{:06x}", app.active_layer.get().color())></span>
                     <Btn id="pcb.rebuild" />
                     <span class="sep"></span>
-                    <Btn id="design.drc" text=true />
-                    <Btn id="view.3d" text=true />
+                    <Btn id="design.drc" label="DRC" />
+                    <Btn id="view.3d" label="3D" />
                 }.into_any(),
                 "symbol" => view! {
                     <Btn id="tool.select" />
@@ -142,13 +154,12 @@ pub fn Toolbar() -> impl IntoView {
                     <Btn id="edit.rotate" />
                     <Btn id="edit.delete" />
                 }.into_any(),
-                "3d" => view! { <Btn id="view.sch" text=true /><Btn id="view.pcb" text=true /> }.into_any(),
-                _ => view! { <Btn id="file.example" text=true /> }.into_any(),
+                "3d" => view! { <Btn id="view.sch" label="Schematic" /><Btn id="view.pcb" label="PCB" /> }.into_any(),
+                _ => view! { <Btn id="file.example" label="Open Example" /> }.into_any(),
             }}
             <div class="spacer"></div>
-            {move || matches!(kind.get(), "sch" | "pcb" | "3d").then(|| view! { <Btn id="export.fab" text=true /> })}
+            {move || matches!(kind.get(), "sch" | "pcb" | "3d").then(|| view! { <Btn id="export.fab" label="Fabrication Files" /> })}
             <Btn id="settings.prefs" />
         </div>
     }
 }
-
