@@ -94,6 +94,21 @@ fn body_from(k: &str) -> Option<Body> {
     })
 }
 
+/// Copy a device under a new id and open the copy.
+fn duplicate_device(app: &AppState, id: &str) {
+    let mut new_id = String::new();
+    app.edit("Duplicate device", |p| {
+        let Some(mut d) = p.library.devices.get(id).cloned() else { return };
+        new_id = (2..).map(|n| format!("{id}-copy{n}")).find(|c| !p.library.devices.contains_key(c)).unwrap();
+        d.id = new_id.clone();
+        d.name = format!("{} (copy)", d.name);
+        p.library.add_device(d);
+    });
+    if !new_id.is_empty() {
+        app.open(Tab::Device { id: new_id });
+    }
+}
+
 #[component]
 fn Field(label: &'static str, children: Children) -> impl IntoView {
     view! { <label class="field"><span>{label}</span>{children()}</label> }
@@ -198,10 +213,12 @@ pub fn DevicePage(id: String) -> impl IntoView {
                     let sym_open = sym_id.clone();
                     let fp_open = fp_id.clone();
                     let place_id = d.id.clone();
+                    let dup_id = d.id.clone();
                     view! {
                         <div class="device-head">
                             <h2><Icon name="chip" />{d.name.clone()}</h2>
                             <div class="actions">
+                                <button on:click=move |_| duplicate_device(&app, &dup_id) title="Make an editable copy (for a variant with another footprint or value)"><Icon name="copy" />"Duplicate"</button>
                                 <button class="primary" on:click=move |_| actions::place_device(&app, &place_id)><Icon name="plus" />"Place in Schematic"</button>
                             </div>
                         </div>
