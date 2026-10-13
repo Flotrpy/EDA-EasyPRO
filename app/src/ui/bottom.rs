@@ -9,6 +9,9 @@ use leptos::prelude::*;
 pub fn BottomPanel() -> impl IntoView {
     let app = use_app();
     let count = move || app.issues.with(|i| i.len());
+    // Which severities are listed.
+    let show_warn = RwSignal::new(true);
+    let show_info = RwSignal::new(true);
     view! {
         <section class="bottom" style=move || format!("height: {}px", app.settings.with(|s| s.bottom_height))>
             <div class="bottom-tabs">
@@ -17,6 +20,10 @@ pub fn BottomPanel() -> impl IntoView {
                     "Issues" {move || (count() > 0).then(|| view! { <span class="count">{count()}</span> })}
                 </button>
                 <span class="spacer"></span>
+                {move || (app.bottom_tab.get() == BottomTab::Issues).then(|| view! {
+                    <label class="chk small"><input type="checkbox" prop:checked=move || show_warn.get() on:change=move |ev| show_warn.set(event_target_checked(&ev)) />"Warnings"</label>
+                    <label class="chk small"><input type="checkbox" prop:checked=move || show_info.get() on:change=move |ev| show_info.set(event_target_checked(&ev)) />"Info"</label>
+                })}
                 <span class="bt-title">{move || if app.bottom_tab.get() == BottomTab::Issues { app.issues_title.get() } else { String::new() }}</span>
                 <button class="icon" title="Clear" on:click=move |_| match app.bottom_tab.get_untracked() { BottomTab::Log => app.log.set(vec![]), BottomTab::Issues => { app.issues.set(vec![]); app.issues_title.set(String::new()); } }><Icon name="trash" /></button>
                 <button class="icon" title="Hide panel" on:click=move |_| app.show_bottom.set(false)><Icon name="x" /></button>
@@ -40,7 +47,11 @@ pub fn BottomPanel() -> impl IntoView {
                             {move || {
                                 let list = app.issues.get();
                                 if list.is_empty() { return view! { <div class="tree-empty">"Run Design → ERC (schematic) or DRC (PCB) to check the design."</div> }.into_any(); }
-                                list.into_iter().map(|is| {
+                                list.into_iter().filter(|is| match is.severity {
+                                    Severity::Error => true,
+                                    Severity::Warning => show_warn.get(),
+                                    Severity::Info => show_info.get(),
+                                }).map(|is| {
                                     let sev = match is.severity { Severity::Error => "error", Severity::Warning => "warn", Severity::Info => "info" };
                                     let issue = is.clone();
                                     view! {
