@@ -147,7 +147,10 @@ impl PcbHandler {
     fn finish(&self, app: &AppState, k: &Kind, v: &mut View) {
         let had = !v.tool.points.is_empty();
         v.tool = Default::default();
+        // The net was highlighted only while routing it.
+        app.highlight_net.set(None);
         if had {
+            app.status.set("Route finished. Click another pad to keep routing.".into());
             // Fills react to the new copper.
             let b = board(k);
             app.project.update(|p| {
