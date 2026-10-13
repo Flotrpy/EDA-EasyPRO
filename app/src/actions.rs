@@ -1417,6 +1417,16 @@ pub fn export_csv_netlist(app: &AppState) {
     }
 }
 
+pub fn export_ipc356(app: &AppState) {
+    let base = file_base(app);
+    if let Some(ipc) = with_board(app, |b, lib| {
+        easypro_export::ipc356::ipc356(&b.pcb, lib, &base)
+    }) {
+        js::download(&format!("{base}.ipc"), ipc.as_bytes(), "text/plain");
+        app.ok("IPC-D-356 test netlist exported");
+    }
+}
+
 pub fn export_svg(app: &AppState) {
     let base = file_base(app);
     let dark = app.dark.get_untracked();

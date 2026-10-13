@@ -147,6 +147,10 @@ pub fn package_files(board: &Board, lib: &Library, fab: Fab, base: &str) -> Vec<
             excellon(&npth, false).into_bytes(),
         ));
     }
+    files.push((
+        format!("{base}.ipc"),
+        crate::ipc356::ipc356(pcb, lib, base).into_bytes(),
+    ));
     if fab != Fab::Oshpark {
         let style = fab.bom_style();
         files.push((
@@ -199,6 +203,7 @@ mod tests {
             "blinker-PTH.DRL",
             "blinker-BOM.csv",
             "blinker-CPL.csv",
+            "blinker.ipc",
         ] {
             assert!(names.contains(&want), "missing {want} in {names:?}");
         }

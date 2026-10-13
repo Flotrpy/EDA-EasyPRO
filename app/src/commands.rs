@@ -177,6 +177,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("export.netlist", "KiCad Netlist (.net)", "Export", "", Doc, "schematic", a::export_netlist),
     cmd!("export.assembly", "Assembly Drawings (SVG, top and bottom)", "Export", "", Doc, "board", a::export_assembly),
     cmd!("export.csv_netlist", "Netlist (CSV)", "Export", "", Doc, "list", a::export_csv_netlist),
+    cmd!("export.ipc356", "IPC-D-356 Test Netlist (.ipc)", "Export", "", Doc, "list", a::export_ipc356),
     cmd!("export.svg", "SVG of Current View", "Export", "", Canvas, "download", a::export_svg),
     cmd!("export.print", "Print Schematic / Save as PDF…", "Export", "Ctrl+P", Doc, "sheet", a::print_schematic),
     cmd!("export.json", "Project File (.epro.json)", "Export", "", Any, "download", a::export_json),
