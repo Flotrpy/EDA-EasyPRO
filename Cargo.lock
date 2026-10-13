@@ -91,6 +91,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "easypro-view3d"
+version = "0.1.0"
+dependencies = [
+ "earcutr",
+ "easypro-core",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "either"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
