@@ -84,12 +84,30 @@ try {
   await page.waitForSelector('.modal:has-text("Fabrication Package")');
   const files = await page.textContent('.fab-right');
   check(files.includes('.GTL') && files.includes('.DRL') && files.includes('gbrjob'), 'fab package lists Gerber, drill and job files');
+  check(files.includes('.ipc'), 'fab package includes the IPC-D-356 netlist');
   await page.keyboard.press('Escape');
 
   // 3D view builds.
   await page.keyboard.press('Alt+3');
   await page.waitForSelector('.view3d canvas');
   check(await page.isVisible('.view3d-bar'), '3D view opens');
+
+  // The routed example is DRC clean, from the palette.
+  await page.keyboard.press('Control+k');
+  await page.keyboard.type('3.3V Regulator');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.tab.active:has-text("Sheet1")');
+  await page.waitForTimeout(500);
+  await page.click('.tab:has-text("PCB")');
+  await page.waitForTimeout(500);
+  await page.keyboard.press('Control+Alt+d');
+  check((await page.textContent('.bottom-tabs')).includes('DRC: 0 error(s), 0 warning(s)'), 'routed example passes DRC');
+  await page.keyboard.press('Control+k');
+  await page.keyboard.type('Board Info');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.modal:has-text("Board Info")');
+  check((await page.textContent('.modal')).includes('45 mm × 22 mm'), 'Board Info shows the board size');
+  await page.keyboard.press('Escape');
 
   check(errors.length === 0, 'no console errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
 } finally {
