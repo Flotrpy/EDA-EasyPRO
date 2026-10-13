@@ -476,6 +476,7 @@ fn BoardSetup() -> impl IntoView {
                     </div>
                 </div>
             </div>
+            <OutlineEditor />
             <p class="hint">"Layer count and thickness go into the fab notes; the mask colour shows in the 3D view."</p>
             <div class="modal-foot"><button class="primary" on:click=move |_| app.dialog.set(None)>"Done"</button></div>
         </Modal>
@@ -662,5 +663,95 @@ fn IcWizard() -> impl IntoView {
             </div>
             <div class="modal-foot"><button on:click=move |_| app.dialog.set(None)>"Cancel"</button><button class="primary" on:click=create><Icon name="wand" />"Create Device"</button></div>
         </Modal>
+    }
+}
+
+/// Size the board as a (rounded) rectangle and add mounting holes.
+#[component]
+fn OutlineEditor() -> impl IntoView {
+    let app = use_app();
+    let b = actions::board_id(&app);
+    let current = app.project.with_untracked(|p| {
+        b.and_then(|b| p.board(b))
+            .and_then(|bd| bd.pcb.outline())
+            .map(easypro_core::geom::Rect::from_points)
+    });
+    let w = RwSignal::new(current.map(|r| r.width() as f64 / 1e6).unwrap_or(50.0));
+    let h = RwSignal::new(current.map(|r| r.height() as f64 / 1e6).unwrap_or(40.0));
+    let radius = RwSignal::new(0.0f64);
+    let num = |sig: RwSignal<f64>| {
+        move |ev| {
+            if let Ok(v) = event_target_value(&ev).parse::<f64>() {
+                sig.set(v.max(0.0));
+            }
+        }
+    };
+    let apply = move |_| {
+        let Some(b) = b else { return };
+        let origin = current
+            .map(|r| r.min)
+            .unwrap_or(easypro_core::geom::Point::ZERO);
+        let r = easypro_core::geom::Rect::new(
+            origin,
+            origin + easypro_core::geom::Point::new(mm(w.get_untracked()), mm(h.get_untracked())),
+        );
+        app.edit("Board outline", |p| {
+            let lib = p.library.clone();
+            let mut ids = std::mem::take(&mut p.ids);
+            if let Some(bd) = p.board_mut(b) {
+                easypro_core::board::set_rect_outline(
+                    &mut bd.pcb,
+                    r,
+                    mm(radius.get_untracked()),
+                    &mut ids,
+                );
+                bd.pcb.rebuild_pours(&lib);
+            }
+            p.ids = ids;
+        });
+        app.ok(format!(
+            "Board outline set to {} x {} mm",
+            w.get_untracked(),
+            h.get_untracked()
+        ));
+    };
+    let holes = move |_| {
+        let Some(b) = b else { return };
+        let mut added = 0;
+        app.try_edit("Mounting holes", |p| {
+            p.library
+                .import_device(easypro_core::builtin::library(), "dev:MH-M3");
+            let lib = p.library.clone();
+            let mut ids = std::mem::take(&mut p.ids);
+            if let Some(bd) = p.board_mut(b) {
+                added = easypro_core::board::add_corner_holes(
+                    &mut bd.pcb,
+                    &lib,
+                    "dev:MH-M3",
+                    mm(3.5),
+                    &mut ids,
+                );
+                bd.pcb.rebuild_pours(&lib);
+            }
+            p.ids = ids;
+            added > 0
+        });
+        app.ok(if added > 0 {
+            format!("Added {added} M3 mounting hole(s)")
+        } else {
+            "Every corner already has a mounting hole".into()
+        });
+    };
+    view! {
+        <h4>"Outline"</h4>
+        <div class="grid2">
+            <label class="field"><span>"Width (mm)"</span><input type="number" step="0.5" prop:value=move || w.get().to_string() on:change=num(w) /></label>
+            <label class="field"><span>"Height (mm)"</span><input type="number" step="0.5" prop:value=move || h.get().to_string() on:change=num(h) /></label>
+            <label class="field"><span>"Corner radius (mm)"</span><input type="number" step="0.5" prop:value=move || radius.get().to_string() on:change=num(radius) /></label>
+        </div>
+        <div class="row">
+            <button on:click=apply><Icon name="outline" />"Apply Outline"</button>
+            <button on:click=holes><Icon name="via" />"Add M3 Holes at Corners"</button>
+        </div>
     }
 }
