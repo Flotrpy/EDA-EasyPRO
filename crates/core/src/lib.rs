@@ -5,6 +5,7 @@
 
 pub mod font;
 pub mod geom;
+pub mod history;
 pub mod id;
 pub mod layer;
 pub mod library;
