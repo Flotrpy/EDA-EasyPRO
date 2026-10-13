@@ -20,6 +20,7 @@ pub mod pour;
 pub mod project;
 pub mod route;
 pub mod schematic;
+pub mod sexpr;
 pub mod shape;
 pub mod sync;
 pub mod units;
