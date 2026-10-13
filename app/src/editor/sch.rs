@@ -163,7 +163,18 @@ impl Handler for SchHandler {
             let bd = p.board(b)?;
             let sheet = bd.schematic.sheets.get(s)?;
             let conn = easypro_core::netlist::connectivity(&bd.schematic, &p.library);
-            let scene = scene::sheet_scene(sheet, &p.library, Some((&conn, s)), &th, &p.name);
+            let mut scene = scene::sheet_scene(sheet, &p.library, Some((&conn, s)), &th, &p.name);
+            // A highlighted net (also set from the PCB) is drawn bold on top.
+            if let Some(net) = app.highlight_net.get_untracked() {
+                let items = scene::net_highlight_items(sheet, &conn, &net, rgba(0xff9a1a, 200));
+                if let Some((_, layer)) = scene
+                    .layers
+                    .iter_mut()
+                    .find(|(l, _)| *l == SceneLayer::Schematic)
+                {
+                    layer.extend(items);
+                }
+            }
             let grid_mm = app.settings.with_untracked(|st| st.sch_grid) as f64 / 1e6;
             let content = scene
                 .layers
@@ -539,6 +550,21 @@ impl Handler for SchHandler {
                     }
                 });
             }
+            return;
+        }
+        // Double-clicking a wire highlights its whole net.
+        let net = app.project.with_untracked(|p| {
+            let bd = p.board(b)?;
+            if !bd.schematic.sheets.get(s)?.wires.iter().any(|w| w.id == id) {
+                return None;
+            }
+            let conn = easypro_core::netlist::connectivity(&bd.schematic, &p.library);
+            conn.wire_net.get(&id).map(|&i| conn.nets[i].name.clone())
+        });
+        if let Some(net) = net {
+            app.status
+                .set(format!("Highlighting net {net} (Esc to clear)"));
+            app.highlight_net.set(Some(net));
             return;
         }
         app.selection.set(vec![id]);
