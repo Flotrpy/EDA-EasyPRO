@@ -137,6 +137,19 @@ fn Settings() -> impl IntoView {
             </div>
             <div class="modal-foot">
                 <button on:click=move |_| { set_settings(&app, |s| *s = Default::default()); app.dialog.set(None); }>"Reset to defaults"</button>
+                <button title="Save preferences and shortcuts to a file" on:click=move |_| {
+                    let json = app.settings.with_untracked(|s| serde_json::to_string_pretty(s).unwrap_or_default());
+                    js::download("easypro-settings.json", json.as_bytes(), "application/json");
+                }><Icon name="download" />"Export"</button>
+                <button title="Load preferences and shortcuts from a file" on:click=move |_| {
+                    spawn_local(async move {
+                        let Some((name, text)) = storage::pick_file(".json").await else { return };
+                        match serde_json::from_str::<crate::state::Settings>(&text) {
+                            Ok(s) => { set_settings(&app, |cur| *cur = s); app.ok(format!("Loaded settings from {name}")); app.dialog.set(None); }
+                            Err(e) => app.error(format!("{name}: {e}")),
+                        }
+                    });
+                }><Icon name="import" />"Import"</button>
                 <button class="primary" on:click=move |_| app.dialog.set(None)>"Done"</button>
             </div>
         </Modal>
