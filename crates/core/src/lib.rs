@@ -5,6 +5,8 @@
 
 pub mod builtin;
 pub mod check;
+pub mod connect;
+pub mod drc;
 pub mod erc;
 pub mod font;
 pub mod geom;
