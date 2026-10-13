@@ -477,6 +477,48 @@ pub fn flip(app: &AppState) {
     });
 }
 
+/// Move the selection by whole grid steps.
+fn nudge(app: &AppState, dx: i64, dy: i64) {
+    use crate::editor::canvas::{handler, Kind};
+    let Some(k) = Kind::from_tab(&app.tab_untracked()) else {
+        return;
+    };
+    let sel = app.selection.get_untracked();
+    if sel.is_empty() {
+        return;
+    }
+    let h = handler(&k);
+    let g = h.snap(app).max(1);
+    app.edit("Nudge", |p| {
+        h.apply_move(p, &k, &sel, Point::new(dx * g, dy * g))
+    });
+}
+
+pub fn nudge_left(app: &AppState) {
+    nudge(app, -1, 0);
+}
+pub fn nudge_right(app: &AppState) {
+    nudge(app, 1, 0);
+}
+pub fn nudge_up(app: &AppState) {
+    nudge(app, 0, 1);
+}
+pub fn nudge_down(app: &AppState) {
+    nudge(app, 0, -1);
+}
+pub fn nudge_left10(app: &AppState) {
+    nudge(app, -10, 0);
+}
+pub fn nudge_right10(app: &AppState) {
+    nudge(app, 10, 0);
+}
+pub fn nudge_up10(app: &AppState) {
+    nudge(app, 0, 10);
+}
+pub fn nudge_down10(app: &AppState) {
+    nudge(app, 0, -10);
+}
+
 pub fn escape(app: &AppState) {
     if app.palette.get_untracked() {
         app.palette.set(false);
