@@ -75,6 +75,11 @@ pub enum Gesture {
         a: (f64, f64),
         b: (f64, f64),
     },
+    /// Two-finger zoom and pan on touch screens.
+    Pinch {
+        dist: f64,
+        mid: (f64, f64),
+    },
     Tool,
 }
 
@@ -103,6 +108,16 @@ pub struct View {
     pub raw: Point,
     pub fitted: bool,
     pub frame_pending: bool,
+    /// Active touch points (pointer id, position).
+    pub touches: Vec<(i32, (f64, f64))>,
+}
+
+fn pinch_of(t: &[(i32, (f64, f64))]) -> Option<(f64, (f64, f64))> {
+    let (a, b) = (t.first()?.1, t.get(1)?.1);
+    Some((
+        ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt().max(1.0),
+        ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0),
+    ))
 }
 
 impl View {
@@ -409,6 +424,7 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                         raw: Point::ZERO,
                         fitted: saved.is_some(),
                         frame_pending: false,
+                        touches: Vec::new(),
                     }));
                     ACTIVE.with(|a| *a.borrow_mut() = Some((kind.clone(), v.clone())));
                     *view_cell.borrow_mut() = Some(v.clone());
@@ -532,6 +548,24 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                 {
                     let mut v = view.borrow_mut();
                     update_cursor(&app, &mut v, xy);
+                    let touch = ev.pointer_type() == "touch";
+                    if touch {
+                        v.touches.retain(|(id, _)| *id != ev.pointer_id());
+                        v.touches.push((ev.pointer_id(), xy));
+                        if v.touches.len() == 2 {
+                            // A second finger turns any gesture into a pinch.
+                            if let Gesture::Drag { before, .. } =
+                                std::mem::replace(&mut v.gesture, Gesture::None)
+                            {
+                                app.project.set(*before);
+                                app.rev.update(|r| *r += 1);
+                            }
+                            if let Some((dist, mid)) = pinch_of(&v.touches) {
+                                v.gesture = Gesture::Pinch { dist, mid };
+                            }
+                            return;
+                        }
+                    }
                     if ev.button() == 1 || ev.button() == 2 {
                         v.gesture = Gesture::Pan {
                             last: xy,
@@ -577,7 +611,15 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                                 if !ev.shift_key() {
                                     app.selection.set(vec![]);
                                 }
-                                v.gesture = Gesture::Box { a: xy, b: xy };
+                                // Dragging a finger over empty space pans, as on maps.
+                                v.gesture = if touch {
+                                    Gesture::Pan {
+                                        last: xy,
+                                        moved: 0.0,
+                                    }
+                                } else {
+                                    Gesture::Box { a: xy, b: xy }
+                                };
                             }
                         }
                     }
@@ -598,8 +640,19 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                 {
                     let mut v = view.borrow_mut();
                     update_cursor(&app, &mut v, xy);
+                    if let Some(t) = v.touches.iter_mut().find(|(id, _)| *id == ev.pointer_id()) {
+                        t.1 = xy;
+                    }
                     let mut g = std::mem::replace(&mut v.gesture, Gesture::None);
                     match &mut g {
+                        Gesture::Pinch { dist, mid } => {
+                            if let Some((d, m)) = pinch_of(&v.touches) {
+                                v.camera.pan_pixels(m.0 - mid.0, m.1 - mid.1);
+                                v.camera.zoom_at(m.0, m.1, d / *dist);
+                                *dist = d;
+                                *mid = m;
+                            }
+                        }
                         Gesture::Pan { last, moved } => {
                             v.camera.pan_pixels(xy.0 - last.0, xy.1 - last.1);
                             *moved += (xy.0 - last.0).abs() + (xy.1 - last.1).abs();
@@ -655,8 +708,10 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                 let h = handler(&kind);
                 {
                     let mut v = view.borrow_mut();
+                    v.touches.retain(|(id, _)| *id != ev.pointer_id());
                     let g = std::mem::replace(&mut v.gesture, Gesture::None);
                     match g {
+                        Gesture::Pinch { .. } => {}
                         Gesture::Pan { moved, .. } => {
                             if ev.button() == 2 && moved < 4.0 {
                                 if matches!(app.tool.get_untracked(), Tool::Select) {
