@@ -25,6 +25,7 @@ pub fn StatusBar() -> impl IntoView {
     view! {
         <footer class="statusbar">
             <span class="msg">{move || app.status.get()}</span>
+            <span class="hover-info">{move || app.hover_info.get()}</span>
             <span class="spacer"></span>
             <span class="sel">{move || { let n = app.selection.with(|s| s.len()); if n > 0 { format!("{n} selected") } else { String::new() } }}</span>
             <span class="pos">{pos}</span>

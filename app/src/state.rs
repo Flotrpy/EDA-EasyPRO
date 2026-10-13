@@ -239,6 +239,8 @@ pub struct AppState {
     pub cross: RwSignal<Vec<Id>>,
     /// Id under the cursor in the active editor.
     pub hover: RwSignal<Option<Id>>,
+    /// Short description of the object under the cursor.
+    pub hover_info: RwSignal<String>,
     pub tool: RwSignal<Tool>,
     pub settings: RwSignal<Settings>,
     pub log: RwSignal<Vec<LogLine>>,
@@ -295,6 +297,7 @@ impl AppState {
             selection: RwSignal::new(vec![]),
             cross: RwSignal::new(vec![]),
             hover: RwSignal::new(None),
+            hover_info: RwSignal::new(String::new()),
             tool: RwSignal::new(Tool::Select),
             settings,
             log: RwSignal::new(vec![]),

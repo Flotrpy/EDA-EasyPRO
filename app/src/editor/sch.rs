@@ -459,6 +459,42 @@ impl Handler for SchHandler {
         draw_items(v, m, &items);
     }
 
+    fn describe(&self, app: &AppState, k: &Kind, id: Id) -> String {
+        let (b, s) = kk(k);
+        app.project.with_untracked(|p| {
+            let Some(bd) = p.board(b) else {
+                return String::new();
+            };
+            let Some(sh) = bd.schematic.sheets.get(s) else {
+                return String::new();
+            };
+            if let Some(c) = sh.component(id) {
+                let name = p
+                    .library
+                    .devices
+                    .get(&c.device)
+                    .map(|d| d.name.as_str())
+                    .unwrap_or("");
+                return format!("{} · {} · {name}", c.designator, c.value);
+            }
+            if sh.wires.iter().any(|w| w.id == id) {
+                let conn = easypro_core::netlist::connectivity(&bd.schematic, &p.library);
+                return conn
+                    .wire_net
+                    .get(&id)
+                    .map(|&i| format!("Wire · net {}", conn.nets[i].name))
+                    .unwrap_or_else(|| "Wire (unconnected)".into());
+            }
+            if let Some(l) = sh.labels.iter().find(|l| l.id == id) {
+                return format!("Net label {}", l.name);
+            }
+            if let Some(pt) = sh.ports.iter().find(|l| l.id == id) {
+                return format!("Power flag {}", pt.name);
+            }
+            String::new()
+        })
+    }
+
     fn open_item(&self, app: &AppState, k: &Kind, id: Id) {
         let (b, s) = kk(k);
         let label = app.project.with_untracked(|p| {

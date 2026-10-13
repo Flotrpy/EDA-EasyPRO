@@ -137,6 +137,10 @@ pub trait Handler {
     }
     fn overlay(&self, _app: &AppState, _k: &Kind, _v: &View, _m: &mut Mesh) {}
     fn open_item(&self, _app: &AppState, _k: &Kind, _id: Id) {}
+    /// One-line description for the status bar.
+    fn describe(&self, _app: &AppState, _k: &Kind, _id: Id) -> String {
+        String::new()
+    }
 }
 
 pub fn handler(k: &Kind) -> &'static dyn Handler {
@@ -623,6 +627,10 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
                                 let hv = h.hit(&app, &kind, v.raw, tol);
                                 if app.hover.get_untracked() != hv {
                                     app.hover.set(hv);
+                                    app.hover_info.set(
+                                        hv.map(|id| h.describe(&app, &kind, id))
+                                            .unwrap_or_default(),
+                                    );
                                 }
                             } else {
                                 h.tool_move(&app, &kind, &mut v);
@@ -761,6 +769,7 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
     let on_leave = move |_| {
         app.cursor.set(None);
         app.hover.set(None);
+        app.hover_info.set(String::new());
     };
 
     {

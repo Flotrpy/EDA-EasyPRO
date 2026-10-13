@@ -200,6 +200,7 @@ kbd {
   flex: none;
 }
 .statusbar .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusbar .hover-info { color: var(--accent-text); white-space: nowrap; }
 .statusbar .pos { font-variant-numeric: tabular-nums; min-width: 190px; }
 .statusbar .unit { padding: 0 6px; height: 18px; font-size: 11px; }
 

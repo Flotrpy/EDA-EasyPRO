@@ -606,6 +606,49 @@ impl Handler for PcbHandler {
         draw_items(v, m, &items);
     }
 
+    fn describe(&self, app: &AppState, k: &Kind, id: Id) -> String {
+        app.project.with_untracked(|p| {
+            let Some(b) = p.board(board(k)) else {
+                return String::new();
+            };
+            let pcb = &b.pcb;
+            if let Some(c) = pcb.component(id) {
+                let fp = p
+                    .library
+                    .footprints
+                    .get(&c.footprint)
+                    .map(|f| f.name.as_str())
+                    .unwrap_or("");
+                return format!(
+                    "{} · {} · {fp}{}",
+                    c.designator,
+                    c.value,
+                    if c.locked { " · locked" } else { "" }
+                );
+            }
+            if let Some(t) = pcb.tracks.iter().find(|t| t.id == id) {
+                return format!(
+                    "Track · {} · {} · {}",
+                    if t.net.is_empty() { "no net" } else { &t.net },
+                    app.fmt_len(t.width),
+                    t.layer.name()
+                );
+            }
+            if let Some(v) = pcb.vias.iter().find(|t| t.id == id) {
+                return format!(
+                    "Via · {} · {}/{}",
+                    if v.net.is_empty() { "no net" } else { &v.net },
+                    app.fmt_len(v.diameter),
+                    app.fmt_len(v.drill)
+                );
+            }
+            if let Some(po) = pcb.pours.iter().find(|t| t.id == id) {
+                return format!("Copper area · {} · {}", po.net, po.layer.name());
+            }
+            String::new()
+        })
+    }
+
     fn open_item(&self, app: &AppState, k: &Kind, id: Id) {
         // Double-clicking copper highlights its net; parts open properties.
         let net = app.project.with_untracked(|p| {
