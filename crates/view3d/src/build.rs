@@ -27,7 +27,6 @@ impl Default for View3dOptions {
 
 const FR4: u32 = 0xc9b98cff;
 const SILK: u32 = 0xf4f4f0ff;
-const HOLE: u32 = 0x161616ff;
 const METAL: u32 = 0xc8c8ccff;
 const PIN_GOLD: u32 = 0xd8b048ff;
 
@@ -116,9 +115,36 @@ pub fn board_mesh(pcb: &Pcb, lib: &Library, opts: &View3dOptions) -> (Mesh3, f32
     let mut m = Mesh3::default();
 
     let o = ctx.poly(&outline);
-    m.flat(&o, &[], t, true, FR4);
-    m.flat(&o, &[], 0.0, false, FR4);
+
+    // Every drilled hole: centre, radius, plated.
+    let mut holes: Vec<([f32; 2], f32, bool)> = Vec::new();
+    for (c, pad, _) in pcb.pads(lib) {
+        if let Some(d) = pad.drill() {
+            holes.push((
+                ctx.p(c.transform().apply(pad.pos)),
+                (d as f64 / 2e6) as f32,
+                pad.is_plated(),
+            ));
+        }
+    }
+    for v in &pcb.vias {
+        holes.push((ctx.p(v.pos), (v.drill as f64 / 2e6) as f32, true));
+    }
+    let hole_polys: Vec<Vec<[f32; 2]>> = holes.iter().map(|(c, r, _)| circle(*c, *r)).collect();
+
+    m.flat(&o, &hole_polys, t, true, FR4);
+    m.flat(&o, &hole_polys, 0.0, false, FR4);
     m.walls(&o, 0.0, t, FR4);
+    for (c, r, plated) in &holes {
+        hole_wall(
+            &mut m,
+            *c,
+            *r,
+            -0.035,
+            t + 0.035,
+            if *plated { 0xb89a4aff } else { FR4 },
+        );
+    }
 
     let mask = rgb(pcb.mask_color);
     let mask_copper = lighten(mask, 0.18);
@@ -143,7 +169,7 @@ pub fn board_mesh(pcb: &Pcb, lib: &Library, opts: &View3dOptions) -> (Mesh3, f32
         } else {
             Layer::BottomSilk
         };
-        m.flat(&o, &[], z(0.010), up, mask);
+        m.flat(&o, &hole_polys, z(0.010), up, mask);
         for (key, items) in &scene.layers {
             let (dz, color) = match key {
                 SceneLayer::Pcb(l) if *l == copper => (0.020, mask_copper),
@@ -175,39 +201,30 @@ pub fn board_mesh(pcb: &Pcb, lib: &Library, opts: &View3dOptions) -> (Mesh3, f32
                     PadKind::Npth { .. } => false,
                 };
                 if exposed {
+                    let hole: Vec<Vec<[f32; 2]>> = pad
+                        .drill()
+                        .map(|d| circle(ctx.p(tf.apply(pad.pos)), (d as f64 / 2e6) as f32))
+                        .into_iter()
+                        .collect();
                     m.flat(
                         &ctx.poly(&pad.hull(&tf).to_polygon()),
-                        &[],
+                        &hole,
                         z(0.030),
                         up,
                         finish,
                     );
                 }
-                if let Some(d) = pad.drill() {
-                    m.disc(
-                        ctx.p(tf.apply(pad.pos)),
-                        (d as f64 / 2e6) as f32,
-                        z(0.050),
-                        up,
-                        HOLE,
-                    );
-                }
             }
         }
         for v in &pcb.vias {
-            m.disc(
-                ctx.p(v.pos),
-                (v.diameter as f64 / 2e6) as f32,
+            let c = ctx.p(v.pos);
+            let ring = circle(c, (v.diameter as f64 / 2e6) as f32);
+            m.flat(
+                &ring,
+                &[circle(c, (v.drill as f64 / 2e6) as f32)],
                 z(0.025),
                 up,
                 mask_copper,
-            );
-            m.disc(
-                ctx.p(v.pos),
-                (v.drill as f64 / 2e6) as f32,
-                z(0.050),
-                up,
-                HOLE,
             );
         }
     }
@@ -234,6 +251,32 @@ pub fn board_mesh(pcb: &Pcb, lib: &Library, opts: &View3dOptions) -> (Mesh3, f32
         .sqrt()
         .max(5.0);
     (m, radius)
+}
+
+fn circle(c: [f32; 2], r: f32) -> Vec<[f32; 2]> {
+    (0..20)
+        .map(|i| {
+            let a = std::f32::consts::TAU * i as f32 / 20.0;
+            [c[0] + r * a.cos(), c[1] + r * a.sin()]
+        })
+        .collect()
+}
+
+/// Inside of a drilled hole, normals facing the hole's centre.
+fn hole_wall(m: &mut Mesh3, c: [f32; 2], r: f32, z0: f32, z1: f32, rgba: u32) {
+    let pts = circle(c, r);
+    let n = pts.len();
+    for i in 0..n {
+        let (a, b) = (pts[i], pts[(i + 1) % n]);
+        let mid = [(a[0] + b[0]) / 2.0 - c[0], (a[1] + b[1]) / 2.0 - c[1]];
+        let l = (mid[0] * mid[0] + mid[1] * mid[1]).sqrt().max(1e-6);
+        let nrm = [-mid[0] / l, -mid[1] / l, 0.0];
+        let i0 = m.vertex([a[0], a[1], z0], nrm, rgba);
+        let i1 = m.vertex([b[0], b[1], z0], nrm, rgba);
+        let i2 = m.vertex([b[0], b[1], z1], nrm, rgba);
+        let i3 = m.vertex([a[0], a[1], z1], nrm, rgba);
+        m.indices.extend([i0, i2, i1, i0, i3, i2]);
+    }
 }
 
 fn mm(nm: i64) -> f32 {
