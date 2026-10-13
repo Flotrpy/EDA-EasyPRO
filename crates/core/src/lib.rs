@@ -11,6 +11,7 @@ pub mod library;
 pub mod netlist;
 pub mod pcb;
 pub mod pour;
+pub mod project;
 pub mod schematic;
 pub mod shape;
 pub mod units;
