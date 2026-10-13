@@ -57,7 +57,15 @@ Junction dots appear automatically where three or more connections meet.
 6. **Design → Design Rule Check** (**Ctrl+Alt+D**). While you edit, a live
    DRC marks rule errors with red rings.
 7. **Design → Board Setup** sets layer count, thickness, mask colour, the
-   board size with rounded corners, and adds M3 mounting holes.
+   board size with rounded corners, and adds M3 mounting holes. Its *Via
+   stitching* row fills free board area with vias on one net (usually GND)
+   at the pitch you pick, keeping clear of pads, tracks and the edge.
+8. **Design → Board Info** shows the board size and area, part, pad, hole and
+   via counts, and the routed length of every net. Selecting a track also
+   shows its whole net's length in Properties.
+
+**Edit → Select Similar Parts** (also on the right-click menu) selects every
+part with the same device and value as the selection, in schematic or PCB.
 
 Zoom in to see pad numbers and net names on the pads.
 
@@ -85,7 +93,9 @@ are generated from the footprint pads. **PNG** saves a picture.
 **Export → Fabrication Package** (**Ctrl+Alt+G**) builds a zip with Gerber
 X2 layers, a Gerber job file, Excellon drill files, BOM and pick-and-place
 CSV, named the way the chosen manufacturer expects. The dialog shows the DRC
-status first. **Design → Bill of Materials** lists grouped parts and lets
+status first. The package also holds an IPC-D-356 netlist (`.ipc`) that
+fabs use to electrically test bare boards; **Export → IPC-D-356 Test
+Netlist** saves it on its own. **Design → Bill of Materials** lists grouped parts and lets
 you fill in MPN and LCSC numbers for assembly.
 
 ## Shortcuts
