@@ -215,6 +215,21 @@ fn install_cross_probe(app: AppState) {
     });
 }
 
+/// Remember which panels are open.
+fn install_panel_memory(app: AppState) {
+    Effect::new(move |_| {
+        let panels = (
+            app.show_left.get(),
+            app.show_right.get(),
+            app.show_bottom.get(),
+        );
+        if app.settings.with_untracked(|s| s.panels) != panels {
+            app.settings.update_untracked(|s| s.panels = panels);
+            app.settings.with_untracked(|s| s.save());
+        }
+    });
+}
+
 fn install_theme(app: AppState) {
     Effect::new(move |_| {
         let dark = app.dark.get();
@@ -278,6 +293,7 @@ fn App() -> impl IntoView {
     install_live_drc(app);
     install_cross_probe(app);
     install_theme(app);
+    install_panel_memory(app);
     restore_last(app);
     view! { <Shell /> }
 }

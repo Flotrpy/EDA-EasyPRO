@@ -37,6 +37,8 @@ pub struct Settings {
     pub left_width: f64,
     pub right_width: f64,
     pub bottom_height: f64,
+    /// Panel visibility, remembered between visits.
+    pub panels: (bool, bool, bool),
 }
 
 impl Default for Settings {
@@ -55,6 +57,7 @@ impl Default for Settings {
             left_width: 260.0,
             right_width: 280.0,
             bottom_height: 170.0,
+            panels: (true, true, true),
         }
     }
 }
@@ -292,7 +295,9 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> AppState {
-        let settings = RwSignal::new(Settings::load());
+        let loaded = Settings::load();
+        let (show_left, show_right, show_bottom) = loaded.panels;
+        let settings = RwSignal::new(loaded);
         let prefers_dark = web_sys::window()
             .and_then(|w| w.match_media("(prefers-color-scheme: dark)").ok().flatten())
             .map(|m| m.matches())
@@ -320,9 +325,9 @@ impl AppState {
             log: RwSignal::new(vec![]),
             issues: RwSignal::new(vec![]),
             issues_title: RwSignal::new(String::new()),
-            show_left: RwSignal::new(true),
-            show_right: RwSignal::new(true),
-            show_bottom: RwSignal::new(true),
+            show_left: RwSignal::new(show_left),
+            show_right: RwSignal::new(show_right),
+            show_bottom: RwSignal::new(show_bottom),
             left_tab: RwSignal::new(LeftTab::Projects),
             bottom_tab: RwSignal::new(BottomTab::Log),
             dialog: RwSignal::new(None),
