@@ -7,3 +7,4 @@ license.workspace = true
 
 [dependencies]
 easypro-core = { path = "../core" }
+serde_json.workspace = true

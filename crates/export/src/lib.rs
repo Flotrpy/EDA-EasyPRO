@@ -7,6 +7,7 @@ pub mod bom;
 pub mod drill;
 pub mod fab;
 pub mod gerber;
+pub mod job;
 pub mod netlist;
 pub mod svg;
 pub mod zip;

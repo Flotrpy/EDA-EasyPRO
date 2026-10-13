@@ -369,6 +369,7 @@ name = "easypro-export"
 version = "0.1.0"
 dependencies = [
  "easypro-core",
+ "serde_json",
 ]
 
 [[package]]

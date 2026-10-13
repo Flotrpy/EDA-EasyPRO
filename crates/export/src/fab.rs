@@ -120,15 +120,20 @@ pub fn package_files(board: &Board, lib: &Library, fab: Fab, base: &str) -> Vec<
         Artwork::Paste(Side::Bottom),
         Artwork::Outline,
     ]);
+    let mut job_entries = Vec::new();
     let mut files: Vec<(String, Vec<u8>)> = arts
         .into_iter()
         .map(|a| {
-            (
-                layer_file(a, pcb.copper_layers, protel, base),
-                artwork(pcb, lib, a).into_bytes(),
-            )
+            let name = layer_file(a, pcb.copper_layers, protel, base);
+            let (function, polarity) = a.file_function(pcb.copper_layers);
+            job_entries.push((name.clone(), function, polarity.to_string()));
+            (name, artwork(pcb, lib, a).into_bytes())
         })
         .collect();
+    files.push((
+        format!("{base}-job.gbrjob"),
+        crate::job::job_file(pcb, base, &job_entries).into_bytes(),
+    ));
     let drill_ext = if fab == Fab::Oshpark { "XLN" } else { "DRL" };
     let pth = holes(pcb, lib, true);
     files.push((
@@ -186,6 +191,7 @@ mod tests {
         let files = package_files(&p.boards[0], &p.library, Fab::Jlcpcb, "blinker");
         let names: Vec<_> = files.iter().map(|f| f.0.as_str()).collect();
         for want in [
+            "blinker-job.gbrjob",
             "blinker.GTL",
             "blinker.GBL",
             "blinker.GTO",
