@@ -65,11 +65,19 @@ fn ProjectTree() -> impl IntoView {
                     let boards = app.project.with(|p| p.boards.iter().map(|b| (b.id, b.name.clone(), b.schematic.sheets.iter().map(|s| s.name.clone()).collect::<Vec<_>>())).collect::<Vec<_>>());
                     boards.into_iter().map(|(bid, bname, sheets)| view! {
                         <div class="tree-group">
-                            <div class="tree-item group" style="padding-left: 8px"><Icon name="board" /><span>{bname}</span></div>
+                            <div class="tree-item group" style="padding-left: 8px">
+                                <Icon name="board" /><span>{bname}</span>
+                                <button class="icon add" title="Add sheet" on:click=move |ev| { ev.stop_propagation(); app.open(Tab::Schematic { board: bid, sheet: 0 }); actions::add_sheet(&app); }><Icon name="plus" /></button>
+                            </div>
                             {sheets.into_iter().enumerate().filter(|(_, s)| matches(s)).map(|(i, s)| {
                                 let t = Tab::Schematic { board: bid, sheet: i };
                                 let t2 = t.clone();
-                                view! { <TreeItem icon="schematic" label=s active=is_tab(t) on_open=move || app.open(t2.clone()) depth=1 /> }
+                                let old = s.clone();
+                                view! {
+                                    <div on:dblclick=move |_| rename_sheet(&app, bid, i, &old) title="Double-click to rename">
+                                        <TreeItem icon="schematic" label=s active=is_tab(t) on_open=move || app.open(t2.clone()) depth=1 />
+                                    </div>
+                                }
                             }).collect_view()}
                             {matches("PCB").then(|| { let t = Tab::Pcb { board: bid }; let t2 = t.clone(); view! { <TreeItem icon="pcb" label="PCB" active=is_tab(t) on_open=move || app.open(t2.clone()) depth=1 /> } })}
                             {matches("3D View").then(|| { let t = Tab::View3d { board: bid }; let t2 = t.clone(); view! { <TreeItem icon="cube" label="3D View" active=is_tab(t) on_open=move || app.open(t2.clone()) depth=1 /> } })}
@@ -297,5 +305,26 @@ fn LibraryPanel() -> impl IntoView {
                 }
             })}
         </div>
+    }
+}
+
+fn rename_sheet(app: &AppState, board: easypro_core::id::Id, sheet: usize, old: &str) {
+    let name = web_sys::window().and_then(|w| {
+        w.prompt_with_message_and_default("Sheet name", old)
+            .ok()
+            .flatten()
+    });
+    if let Some(name) = name
+        .map(|n| n.trim().to_string())
+        .filter(|n| !n.is_empty() && n != old)
+    {
+        app.edit("Rename sheet", |p| {
+            if let Some(s) = p
+                .board_mut(board)
+                .and_then(|b| b.schematic.sheets.get_mut(sheet))
+            {
+                s.name = name;
+            }
+        });
     }
 }

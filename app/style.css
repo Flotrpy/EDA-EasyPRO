@@ -232,6 +232,9 @@ kbd {
 .tree-item.group { cursor: default; font-weight: 600; color: var(--muted); }
 .tree-item.group:hover { background: none; }
 .tree-item .ic { color: #c48a1a; }
+.tree-item .add { margin-left: auto; opacity: 0; }
+.tree-item:hover .add { opacity: 1; }
+.tree-item .add .ic { color: var(--muted); }
 .tree-empty { color: var(--muted); font-size: 12px; padding: 6px 12px; }
 .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); padding: 10px 10px 4px; }
 .recent { border-top: 1px solid var(--border); margin-top: 8px; }
