@@ -46,6 +46,16 @@ fn Btn(
     let active = move || tool_of(id).is_some_and(|t| app.tool.get() == t);
     let title = move || {
         let k = commands::key_for(&app, c);
+        // Undo and redo name the step they would revert.
+        app.rev.track();
+        let step = match id {
+            "edit.undo" => app.history.with_value(|h| h.undo_label().map(String::from)),
+            "edit.redo" => app.history.with_value(|h| h.redo_label().map(String::from)),
+            _ => None,
+        };
+        if let Some(step) = step {
+            return format!("{} \"{step}\" ({k})", c.label);
+        }
         if k.is_empty() {
             c.label.to_string()
         } else {
