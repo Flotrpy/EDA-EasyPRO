@@ -98,8 +98,13 @@ fn body_from(k: &str) -> Option<Body> {
 fn duplicate_device(app: &AppState, id: &str) {
     let mut new_id = String::new();
     app.edit("Duplicate device", |p| {
-        let Some(mut d) = p.library.devices.get(id).cloned() else { return };
-        new_id = (2..).map(|n| format!("{id}-copy{n}")).find(|c| !p.library.devices.contains_key(c)).unwrap();
+        let Some(mut d) = p.library.devices.get(id).cloned() else {
+            return;
+        };
+        new_id = (2..)
+            .map(|n| format!("{id}-copy{n}"))
+            .find(|c| !p.library.devices.contains_key(c))
+            .unwrap();
         d.id = new_id.clone();
         d.name = format!("{} (copy)", d.name);
         p.library.add_device(d);

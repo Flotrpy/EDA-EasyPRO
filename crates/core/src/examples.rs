@@ -188,17 +188,175 @@ pub fn blinker() -> Project {
     p
 }
 
+/// World position and net of a placed pad (example builder).
+fn pad_at(p: &Project, des: &str, pad: &str) -> (Point, String) {
+    let c = p.boards[0]
+        .pcb
+        .components
+        .iter()
+        .find(|c| c.designator == des)
+        .expect("part");
+    let fp = &p.library.footprints[&c.footprint];
+    let at = fp.pads.iter().find(|x| x.number == pad).expect("pad").pos;
+    (c.transform().apply(at), c.net_of(pad).to_string())
+}
+
+/// Lay a 45° track through `points`, all on one net and layer.
+fn track(p: &mut Project, net: &str, width: i64, points: &[Point]) {
+    for s in points.windows(2) {
+        let id = p.next_id();
+        p.boards[0].pcb.tracks.push(crate::pcb::Track {
+            id,
+            layer: Layer::TopCopper,
+            a: s[0],
+            b: s[1],
+            width,
+            net: net.into(),
+        });
+    }
+}
+
+/// Drop a SMD pad to the bottom GND pour through a via at `offset`.
+fn ground_via(p: &mut Project, des: &str, pad: &str, offset: Point) {
+    let (at, _) = pad_at(p, des, pad);
+    let id = p.next_id();
+    p.boards[0].pcb.vias.push(crate::pcb::Via {
+        id,
+        pos: at + offset,
+        diameter: mm(0.6),
+        drill: mm(0.3),
+        net: "GND".into(),
+    });
+    track(p, "GND", mm(0.4), &[at, at + offset]);
+}
+
+/// AMS1117 3.3 V regulator with a power LED, fully routed on a 45 x 22 mm board.
+pub fn regulator() -> Project {
+    let mut b = Builder {
+        p: Project::new("3.3V Regulator"),
+    };
+    b.p.description =
+        "AMS1117-3.3 LDO with input and output headers and a power LED. Fully routed.".into();
+    b.p.boards[0].schematic.sheets[0].paper = crate::schematic::PaperSize::A4;
+    let j1 = b.part("dev:HDR-1x2", "5V IN", 3000.0, 6000.0, 0.0);
+    let c1 = b.part("dev:C-0805", "10uF", 4400.0, 6000.0, 0.0);
+    let u1 = b.part("dev:AMS1117-3.3", "AMS1117-3.3", 5800.0, 6000.0, 0.0);
+    let c2 = b.part("dev:C-0805", "22uF", 7200.0, 6000.0, 0.0);
+    let r1 = b.part("dev:R-0603", "1k", 8200.0, 6600.0, 0.0);
+    let d1 = b.part("dev:LED-0805", "Green", 8200.0, 5400.0, 0.0);
+    let j2 = b.part("dev:HDR-1x2", "3V3 OUT", 9400.0, 6000.0, 0.0);
+    for (c, pin, net) in [
+        (j1, "1", "VIN"),
+        (j1, "2", "GND"),
+        (c1, "1", "VIN"),
+        (c1, "2", "GND"),
+        (u1, "3", "VIN"),
+        (u1, "1", "GND"),
+        (u1, "2", "+3V3"),
+        (c2, "1", "+3V3"),
+        (c2, "2", "GND"),
+        (r1, "1", "+3V3"),
+        (r1, "2", "LED_A"),
+        (d1, "2", "LED_A"),
+        (d1, "1", "GND"),
+        (j2, "1", "+3V3"),
+        (j2, "2", "GND"),
+    ] {
+        b.tie(c, pin, net);
+    }
+
+    let mut p = b.p;
+    let lib = p.library.clone();
+    annotate(&mut p.boards[0], &lib, true);
+    update_pcb(&mut p.boards[0], &lib, &mut p.ids);
+    let place = [
+        ("J1", 5.0, 11.0, 0.0),
+        ("C1", 12.0, 13.22, 90.0),
+        ("U1", 22.0, 11.0, 180.0),
+        ("C2", 31.0, 8.8, 90.0),
+        ("R1", 33.0, 4.0, 0.0),
+        ("LED1", 37.0, 4.0, 180.0),
+        ("J2", 40.0, 11.0, 0.0),
+    ];
+    for c in &mut p.boards[0].pcb.components {
+        if let Some((_, x, y, r)) = place.iter().find(|(d, ..)| *d == c.designator) {
+            c.pos = Point::new(mm(*x), mm(*y));
+            c.rotation = *r;
+        }
+    }
+    let board = crate::geom::Rect::new(Point::ZERO, Point::new(mm(45.0), mm(22.0)));
+    crate::board::set_rect_outline(&mut p.boards[0].pcb, board, mm(2.0), &mut p.ids);
+
+    // Hand routing (mm): input along the top, output along the tab side.
+    let pt = |x: f64, y: f64| Point::new(mm(x), mm(y));
+    let power = mm(0.6);
+    track(
+        &mut p,
+        "VIN",
+        power,
+        &[pt(5.0, 12.27), pt(17.82, 12.27), pt(19.7, 14.15)],
+    );
+    track(
+        &mut p,
+        "+3V3",
+        power,
+        &[pt(22.0, 7.85), pt(35.58, 7.85), pt(40.0, 12.27)],
+    );
+    // SOT-223 pin 2 and the tab are the same node; tie them under the body.
+    track(&mut p, "+3V3", power, &[pt(22.0, 14.15), pt(22.0, 7.85)]);
+    track(&mut p, "+3V3", mm(0.4), &[pt(32.2, 7.85), pt(32.2, 4.0)]);
+    track(&mut p, "LED_A", mm(0.4), &[pt(33.8, 4.0), pt(36.05, 4.0)]);
+    for (des, pad, dx, dy) in [
+        ("C1", "2", 0.0, 1.6),
+        ("U1", "1", 0.0, 1.8),
+        ("C2", "2", 0.0, 1.6),
+        ("LED1", "1", 1.6, 0.0),
+    ] {
+        ground_via(&mut p, des, pad, pt(dx, dy));
+    }
+
+    let pour_id = p.next_id();
+    let pcb = &mut p.boards[0].pcb;
+    pcb.pours.push(Pour {
+        id: pour_id,
+        layer: Layer::BottomCopper,
+        net: "GND".into(),
+        outline: board.corners().to_vec(),
+        clearance: None,
+        remove_islands: true,
+        filled: vec![],
+    });
+    pcb.rebuild_pours(&lib);
+    p
+}
+
 /// An example: display name and constructor.
 pub type Example = (&'static str, fn() -> Project);
 
 pub fn all() -> Vec<Example> {
-    vec![("555 LED Blinker", blinker)]
+    vec![
+        ("555 LED Blinker", blinker),
+        ("3.3V Regulator (routed)", regulator),
+    ]
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::check::Severity;
+
+    #[test]
+    fn regulator_is_routed_and_drc_clean() {
+        let p = regulator();
+        let b = &p.boards[0];
+        let erc = crate::erc::run(&b.schematic, &p.library);
+        assert!(
+            erc.iter().all(|i| i.severity != Severity::Error),
+            "{erc:#?}"
+        );
+        let drc = crate::drc::run(&b.pcb, &p.library, crate::units::Unit::Mm);
+        assert!(drc.is_empty(), "{drc:#?}");
+    }
 
     #[test]
     fn blinker_is_clean_and_synced() {
