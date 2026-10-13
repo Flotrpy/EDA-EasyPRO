@@ -581,16 +581,13 @@ impl Handler for PcbHandler {
             }
             _ => {}
         }
-        // Rule-check markers.
+        // Rule-check markers. Unrouted nets already show as ratsnest lines,
+        // so only errors get a ring.
         let r = (7.0 / v.camera.zoom * 1e6) as i64;
         for is in app.issues.get_untracked() {
             if let Some(p) = is.pos {
-                if is.sheet.is_none() {
-                    let c = if is.severity == easypro_core::check::Severity::Error {
-                        rgba(0xff3b3b, 230)
-                    } else {
-                        rgba(0xffb020, 200)
-                    };
+                if is.sheet.is_none() && is.severity == easypro_core::check::Severity::Error {
+                    let c = rgba(0xff3b3b, 230);
                     items.push(Item {
                         prim: Prim::Ring {
                             c: p,
