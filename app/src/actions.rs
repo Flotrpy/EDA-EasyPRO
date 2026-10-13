@@ -1390,6 +1390,19 @@ pub fn export_netlist(app: &AppState) {
     }
 }
 
+pub fn export_csv_netlist(app: &AppState) {
+    if let Some(csv) = with_board(app, |b, lib| {
+        easypro_export::netlist::csv_netlist(&b.schematic, lib)
+    }) {
+        js::download(
+            &format!("{}-netlist.csv", file_base(app)),
+            csv.as_bytes(),
+            "text/csv",
+        );
+        app.ok("CSV netlist exported");
+    }
+}
+
 pub fn export_svg(app: &AppState) {
     let base = file_base(app);
     let dark = app.dark.get_untracked();
