@@ -81,19 +81,22 @@ pub fn persist(app: &AppState) {
 pub fn open_project(app: &AppState) {
     let app = *app;
     spawn_local(async move {
-        let Some((name, text)) = storage::pick_file(".json,application/json").await else {
-            return;
-        };
-        match Project::from_json(&text) {
-            Ok(p) => {
-                let pname = p.name.clone();
-                app.load_project(p, storage::new_key());
-                persist(&app);
-                app.ok(format!("Opened {name} ({pname})"));
-            }
-            Err(e) => app.error(format!("{name}: {e}")),
+        if let Some((name, text)) = storage::pick_file(".json,application/json").await {
+            open_project_text(&app, &name, &text);
         }
     });
+}
+
+pub fn open_project_text(app: &AppState, name: &str, text: &str) {
+    match Project::from_json(text) {
+        Ok(p) => {
+            let pname = p.name.clone();
+            app.load_project(p, storage::new_key());
+            persist(app);
+            app.ok(format!("Opened {name} ({pname})"));
+        }
+        Err(e) => app.error(format!("{name}: {e}")),
+    }
 }
 
 pub fn open_example(app: &AppState) {
@@ -165,50 +168,72 @@ fn unique_id(existing: impl Fn(&str) -> bool, base: &str) -> String {
 pub fn import_kicad_footprint(app: &AppState) {
     let app = *app;
     spawn_local(async move {
-        let Some((name, text)) = storage::pick_file(".kicad_mod").await else {
-            return;
-        };
-        match easypro_core::kicad::import_footprint(&text) {
-            Ok(mut f) => {
-                f.id = app
-                    .project
-                    .with_untracked(|p| unique_id(|i| p.library.footprints.contains_key(i), &f.id));
-                let id = f.id.clone();
-                let pads = f.pads.len();
-                app.edit("Import footprint", |p| p.library.add_footprint(f));
-                app.ok(format!("Imported footprint from {name} ({pads} pads)"));
-                app.open(Tab::Footprint { id });
-            }
-            Err(e) => app.error(format!("{name}: {e}")),
+        if let Some((name, text)) = storage::pick_file(".kicad_mod").await {
+            import_footprint_text(&app, &name, &text);
         }
     });
+}
+
+pub fn import_footprint_text(app: &AppState, name: &str, text: &str) {
+    match easypro_core::kicad::import_footprint(text) {
+        Ok(mut f) => {
+            f.id = app
+                .project
+                .with_untracked(|p| unique_id(|i| p.library.footprints.contains_key(i), &f.id));
+            let id = f.id.clone();
+            let pads = f.pads.len();
+            app.edit("Import footprint", |p| p.library.add_footprint(f));
+            app.ok(format!("Imported footprint from {name} ({pads} pads)"));
+            app.open(Tab::Footprint { id });
+        }
+        Err(e) => app.error(format!("{name}: {e}")),
+    }
 }
 
 pub fn import_kicad_symbols(app: &AppState) {
     let app = *app;
     spawn_local(async move {
-        let Some((name, text)) = storage::pick_file(".kicad_sym").await else {
-            return;
-        };
-        match easypro_core::kicad::import_symbols(&text) {
-            Ok(syms) => {
-                let n = syms.len();
-                let mut first = None;
-                app.edit("Import symbols", |p| {
-                    for mut s in syms {
-                        s.id = unique_id(|i| p.library.symbols.contains_key(i), &s.id);
-                        first.get_or_insert(s.id.clone());
-                        p.library.add_symbol(s);
-                    }
-                });
-                app.ok(format!("Imported {n} symbol(s) from {name}"));
-                if let Some(id) = first {
-                    app.open(Tab::Symbol { id });
-                }
-            }
-            Err(e) => app.error(format!("{name}: {e}")),
+        if let Some((name, text)) = storage::pick_file(".kicad_sym").await {
+            import_symbols_text(&app, &name, &text);
         }
     });
+}
+
+pub fn import_symbols_text(app: &AppState, name: &str, text: &str) {
+    match easypro_core::kicad::import_symbols(text) {
+        Ok(syms) => {
+            let n = syms.len();
+            let mut first = None;
+            app.edit("Import symbols", |p| {
+                for mut s in syms {
+                    s.id = unique_id(|i| p.library.symbols.contains_key(i), &s.id);
+                    first.get_or_insert(s.id.clone());
+                    p.library.add_symbol(s);
+                }
+            });
+            app.ok(format!("Imported {n} symbol(s) from {name}"));
+            if let Some(id) = first {
+                app.open(Tab::Symbol { id });
+            }
+        }
+        Err(e) => app.error(format!("{name}: {e}")),
+    }
+}
+
+/// Open or import a dropped file by its extension.
+pub fn open_dropped(app: &AppState, name: &str, text: &str) {
+    let lower = name.to_lowercase();
+    if lower.ends_with(".kicad_mod") {
+        import_footprint_text(app, name, text);
+    } else if lower.ends_with(".kicad_sym") {
+        import_symbols_text(app, name, text);
+    } else if lower.ends_with(".json") {
+        open_project_text(app, name, text);
+    } else {
+        app.warn(format!(
+            "{name}: drop an .epro.json project, a .kicad_mod footprint or a .kicad_sym library"
+        ));
+    }
 }
 
 pub fn start_page(app: &AppState) {

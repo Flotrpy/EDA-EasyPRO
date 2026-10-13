@@ -68,6 +68,33 @@ fn install_keyboard(app: AppState) {
     std::mem::forget(h);
 }
 
+/// Drop project files or KiCad libraries anywhere on the window.
+fn install_file_drop(app: AppState) {
+    let over = window_event_listener(leptos::ev::dragover, |ev| ev.prevent_default());
+    let drop = window_event_listener(leptos::ev::drop, move |ev| {
+        ev.prevent_default();
+        let Some(file) = ev
+            .data_transfer()
+            .and_then(|d| d.files())
+            .and_then(|f| f.get(0))
+        else {
+            return;
+        };
+        let name = file.name();
+        spawn_local(async move {
+            match wasm_bindgen_futures::JsFuture::from(file.text())
+                .await
+                .ok()
+                .and_then(|v| v.as_string())
+            {
+                Some(text) => actions::open_dropped(&app, &name, &text),
+                None => app.error(format!("Could not read {name}")),
+            }
+        });
+    });
+    std::mem::forget((over, drop));
+}
+
 fn install_autosave(app: AppState) {
     let pending = StoredValue::new(0u64);
     Effect::new(move |_| {
@@ -235,6 +262,7 @@ fn App() -> impl IntoView {
     provide_context(app);
     install_keyboard(app);
     install_autosave(app);
+    install_file_drop(app);
     install_live_drc(app);
     install_cross_probe(app);
     install_theme(app);
