@@ -157,6 +157,23 @@ pub fn set_pref(key: &str, value: &str) {
     }
 }
 
+const RECENT_PARTS: &str = "easypro.recent_parts";
+
+/// Device ids placed most recently, newest first.
+pub fn recent_parts() -> Vec<String> {
+    get_pref(RECENT_PARTS)
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn remember_part(id: &str) {
+    let mut v = recent_parts();
+    v.retain(|x| x != id);
+    v.insert(0, id.to_string());
+    v.truncate(8);
+    set_pref(RECENT_PARTS, &serde_json::to_string(&v).unwrap());
+}
+
 /// Random-enough key for a new project.
 pub fn new_key() -> String {
     format!(

@@ -226,6 +226,23 @@ fn LibraryPanel() -> impl IntoView {
                     view! { <button class="chip-btn" class:on=move || category.get() == c2 on:click=move |_| category.set(c3.clone())>{c}</button> }
                 }).collect_view()}
             </div>
+            {move || {
+                let recent = app.recent_parts.get();
+                let show = app.library_query.with(|q| q.is_empty()) && category.with(|c| c.is_empty()) && !recent.is_empty();
+                show.then(|| {
+                    let all = all_devices(&app);
+                    view! {
+                        <div class="section-title">"Recently used"</div>
+                        <div class="chips recent-parts">
+                            {recent.into_iter().filter_map(|id| all.iter().find(|(d, _)| d.id == id).map(|(d, _)| d.clone())).map(|d| {
+                                let id = d.id.clone();
+                                let id2 = d.id.clone();
+                                view! { <button class="chip-btn" title="Click to preview, double-click to place" on:click=move |_| app.library_pick.set(Some(id.clone())) on:dblclick=move |_| actions::place_device(&app, &id2)>{d.name.clone()}</button> }
+                            }).collect_view()}
+                        </div>
+                    }
+                })
+            }}
             <div class="results">
                 {move || {
                     let r = results.get();

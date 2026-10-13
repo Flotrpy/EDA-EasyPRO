@@ -270,6 +270,8 @@ pub struct AppState {
     pub place_mirror: RwSignal<bool>,
     /// Track width chosen in the toolbar; None follows the design rules.
     pub route_width: RwSignal<Option<i64>>,
+    /// Recently placed device ids.
+    pub recent_parts: RwSignal<Vec<String>>,
     pub dark: Memo<bool>,
 }
 
@@ -329,6 +331,7 @@ impl AppState {
             place_rot: RwSignal::new(0.0),
             place_mirror: RwSignal::new(false),
             route_width: RwSignal::new(None),
+            recent_parts: RwSignal::new(storage::recent_parts()),
             dark,
         }
     }

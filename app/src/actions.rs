@@ -742,6 +742,8 @@ pub fn tool_fp_circle(app: &AppState) {
 }
 
 pub fn place_device(app: &AppState, device: &str) {
+    storage::remember_part(device);
+    app.recent_parts.set(storage::recent_parts());
     // Copy the part into the project library first so the file is self-contained.
     let lib = easypro_core::builtin::library();
     let in_project = app
