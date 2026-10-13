@@ -29,3 +29,4 @@ pub mod sexpr;
 pub mod shape;
 pub mod sync;
 pub mod units;
+pub mod wizard;

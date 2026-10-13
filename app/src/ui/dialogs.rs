@@ -6,7 +6,7 @@ use crate::icons::Icon;
 use crate::js;
 use crate::state::{use_app, AppState, Dialog, Tab, Theme};
 use crate::storage;
-use easypro_core::library::{Device, PinKind};
+use easypro_core::library::Device;
 use easypro_core::pcb::NetClass;
 use easypro_core::units::{mil, mm, parse_length, Unit};
 use easypro_export::fab::{package_files, package_zip, Fab};
@@ -542,51 +542,6 @@ fn History() -> impl IntoView {
     }
 }
 
-fn parse_kind(s: &str) -> PinKind {
-    match s.to_lowercase().as_str() {
-        "in" | "input" | "i" => PinKind::Input,
-        "out" | "output" | "o" => PinKind::Output,
-        "io" | "bidir" | "bidirectional" | "b" => PinKind::Bidirectional,
-        "pwr" | "power" | "power_in" | "p" => PinKind::PowerIn,
-        "power_out" | "pout" => PinKind::PowerOut,
-        "oc" | "open_collector" => PinKind::OpenCollector,
-        "nc" => PinKind::NotConnected,
-        _ => PinKind::Passive,
-    }
-}
-
-/// Parse "number name [type]" lines (tab, comma or space separated).
-pub fn parse_pin_list(text: &str) -> Vec<(String, String, PinKind)> {
-    text.lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .filter_map(|l| {
-            let parts: Vec<&str> = l
-                .split(|c: char| c == '\t' || c == ',' || c == ';' || c.is_whitespace())
-                .filter(|s| !s.is_empty())
-                .collect();
-            match parts.as_slice() {
-                [num] => Some((num.to_string(), num.to_string(), PinKind::Passive)),
-                [num, name] => {
-                    let kind = if name.to_uppercase().contains("GND")
-                        || name.to_uppercase().starts_with("VCC")
-                        || name.to_uppercase().starts_with("VDD")
-                    {
-                        PinKind::PowerIn
-                    } else {
-                        PinKind::Bidirectional
-                    };
-                    Some((num.to_string(), name.to_string(), kind))
-                }
-                [num, name, kind, ..] => {
-                    Some((num.to_string(), name.to_string(), parse_kind(kind)))
-                }
-                [] => None,
-            }
-        })
-        .collect()
-}
-
 #[component]
 fn IcWizard() -> impl IntoView {
     let app = use_app();
@@ -611,20 +566,10 @@ fn IcWizard() -> impl IntoView {
         v.dedup();
         v
     };
-    let parsed = Memo::new(move |_| parse_pin_list(&pins.get()));
+    let parsed = Memo::new(move |_| easypro_core::wizard::parse_pin_list(&pins.get()));
     let preview = Memo::new(move |_| {
         let list = parsed.get();
-        let half = list.len().div_ceil(2);
-        let refs: Vec<(&str, &str, PinKind)> = list
-            .iter()
-            .map(|(a, b, k)| (a.as_str(), b.as_str(), *k))
-            .collect();
-        let sym = easypro_core::builtin::symbols::ic_box(
-            "sym:preview",
-            &name.get(),
-            &refs[..half],
-            &refs[half..],
-        );
+        let sym = easypro_core::wizard::ic_symbol("sym:preview", &name.get(), &list);
         easypro_export::svg::scene_to_svg(
             &easypro_core::scene::symbol_scene(&sym, &easypro_core::scene::SchTheme::LIGHT),
             None,
@@ -671,13 +616,7 @@ fn IcWizard() -> impl IntoView {
                 })
                 .find(|i| !p.library.devices.contains_key(i))
                 .unwrap();
-            let half = list.len().div_ceil(2);
-            let refs: Vec<(&str, &str, PinKind)> = list
-                .iter()
-                .map(|(a, b, k)| (a.as_str(), b.as_str(), *k))
-                .collect();
-            let sym =
-                easypro_core::builtin::symbols::ic_box(&sid, &nm, &refs[..half], &refs[half..]);
+            let sym = easypro_core::wizard::ic_symbol(&sid, &nm, &list);
             p.library.add_symbol(sym);
             if let Some(f) = easypro_core::builtin::library().footprints.get(&fp) {
                 p.library
