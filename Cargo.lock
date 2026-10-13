@@ -345,6 +345,7 @@ dependencies = [
  "easypro-view3d",
  "js-sys",
  "leptos",
+ "send_wrapper",
  "serde",
  "serde_json",
  "wasm-bindgen",

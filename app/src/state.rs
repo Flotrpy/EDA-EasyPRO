@@ -200,7 +200,6 @@ pub enum Dialog {
     NewProject,
     Rename,
     IcWizard,
-    Confirm { title: String, body: String, action: String },
 }
 
 /// Requests from menus to the active editor's camera.
@@ -230,8 +229,10 @@ pub struct AppState {
     pub tabs: RwSignal<Vec<Tab>>,
     pub active: RwSignal<usize>,
     pub selection: RwSignal<Vec<Id>>,
-    /// Selected items inside the symbol/footprint editors (indices).
-    pub item_sel: RwSignal<Vec<usize>>,
+    /// Objects linked to the selection in the other editor (cross-probing).
+    pub cross: RwSignal<Vec<Id>>,
+    /// Id under the cursor in the active editor.
+    pub hover: RwSignal<Option<Id>>,
     pub tool: RwSignal<Tool>,
     pub settings: RwSignal<Settings>,
     pub log: RwSignal<Vec<LogLine>>,
@@ -256,6 +257,9 @@ pub struct AppState {
     pub recent: RwSignal<Vec<storage::ProjectMeta>>,
     pub library_query: RwSignal<String>,
     pub library_pick: RwSignal<Option<String>>,
+    /// Rotation and mirroring applied to the part or pin being placed.
+    pub place_rot: RwSignal<f64>,
+    pub place_mirror: RwSignal<bool>,
     pub dark: Memo<bool>,
 }
 
@@ -281,7 +285,8 @@ impl AppState {
             tabs: RwSignal::new(vec![Tab::Start]),
             active: RwSignal::new(0),
             selection: RwSignal::new(vec![]),
-            item_sel: RwSignal::new(vec![]),
+            cross: RwSignal::new(vec![]),
+            hover: RwSignal::new(None),
             tool: RwSignal::new(Tool::Select),
             settings,
             log: RwSignal::new(vec![]),
@@ -306,6 +311,8 @@ impl AppState {
             recent: RwSignal::new(vec![]),
             library_query: RwSignal::new(String::new()),
             library_pick: RwSignal::new(None),
+            place_rot: RwSignal::new(0.0),
+            place_mirror: RwSignal::new(false),
             dark,
         }
     }
@@ -332,7 +339,6 @@ impl AppState {
         };
         if idx != self.active.get_untracked() {
             self.selection.set(vec![]);
-            self.item_sel.set(vec![]);
             self.tool.set(Tool::Select);
             self.active.set(idx);
         }
