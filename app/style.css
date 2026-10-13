@@ -450,6 +450,8 @@ table.netclasses input { min-width: 60px; }
 
 .bom-table { max-height: 55vh; overflow: auto; }
 .bom-table input { min-width: 90px; }
+.history-step { display: flex; width: 100%; justify-content: space-between; border: none; border-bottom: 1px solid var(--panel-3); border-radius: 0; background: none; }
+.history-step .ht { color: var(--muted); font-size: 12px; }
 .history-list { display: flex; flex-direction: column; }
 .history-item { display: grid; grid-template-columns: 1fr 200px auto auto; align-items: center; gap: 8px; padding: 5px 4px; border-bottom: 1px solid var(--panel-3); }
 .history-item .ht { color: var(--muted); font-size: 12px; }

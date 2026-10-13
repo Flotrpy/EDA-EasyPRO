@@ -45,6 +45,7 @@ pub fn Dialogs() -> impl IntoView {
             Dialog::History => view! { <History /> }.into_any(),
             Dialog::IcWizard => view! { <IcWizard /> }.into_any(),
             Dialog::Bom => view! { <BomDialog /> }.into_any(),
+            Dialog::UndoHistory => view! { <UndoHistory /> }.into_any(),
         })
     }
 }
@@ -826,6 +827,33 @@ fn BomDialog() -> impl IntoView {
             <div class="modal-foot">
                 <button on:click=move |_| download(BomStyle::Generic)><Icon name="download" />"CSV"</button>
                 <button class="primary" on:click=move |_| download(BomStyle::Jlc)><Icon name="download" />"JLCPCB format"</button>
+            </div>
+        </Modal>
+    }
+}
+
+/// Every undo step; clicking one undoes back to just before it.
+#[component]
+fn UndoHistory() -> impl IntoView {
+    let app = use_app();
+    let labels = Memo::new(move |_| {
+        app.rev.track();
+        app.history.with_value(|h| h.undo_labels())
+    });
+    view! {
+        <Modal title="Undo History".into()>
+            <p class="hint">"Newest first. Click a step to undo it and everything after it; Ctrl+Y redoes."</p>
+            <div class="history-list">
+                {move || {
+                    let l = labels.get();
+                    if l.is_empty() { return view! { <div class="tree-empty">"Nothing to undo yet."</div> }.into_any(); }
+                    l.into_iter().enumerate().map(|(i, label)| view! {
+                        <button class="history-step" on:click=move |_| { for _ in 0..=i { app.undo(); } }>
+                            <span class="hl">{label}</span>
+                            <span class="ht">{if i == 0 { "latest".to_string() } else { format!("{} steps back", i + 1) }}</span>
+                        </button>
+                    }).collect_view().into_any()
+                }}
             </div>
         </Modal>
     }

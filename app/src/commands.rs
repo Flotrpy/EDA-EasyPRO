@@ -68,6 +68,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("edit.undo", "Undo", "Edit", "Ctrl+Z", Any, "undo", a::undo),
     cmd!("edit.redo", "Redo", "Edit", "Ctrl+Y", Any, "redo", a::redo),
     cmd!("edit.redo2", "Redo", "", "Ctrl+Shift+Z", Any, "redo", a::redo),
+    cmd!("edit.history", "Undo History…", "Edit", "", Any, "history", a::undo_history),
     cmd!("edit.cut", "Cut", "Edit", "Ctrl+X", Doc, "copy", a::cut),
     cmd!("edit.copy", "Copy", "Edit", "Ctrl+C", Doc, "copy", a::copy),
     cmd!("edit.paste", "Paste", "Edit", "Ctrl+V", Doc, "paste", a::paste),

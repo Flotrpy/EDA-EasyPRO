@@ -207,6 +207,7 @@ pub enum Dialog {
     Rename,
     IcWizard,
     Bom,
+    UndoHistory,
 }
 
 /// Requests from menus to the active editor's camera.

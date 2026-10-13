@@ -250,6 +250,10 @@ pub fn redo(app: &AppState) {
     app.redo();
 }
 
+pub fn undo_history(app: &AppState) {
+    app.dialog.set(Some(Dialog::UndoHistory));
+}
+
 pub fn copy(app: &AppState) {
     let sel = app.selection.get_untracked();
     if sel.is_empty() {
