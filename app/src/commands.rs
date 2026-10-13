@@ -106,6 +106,7 @@ pub static COMMANDS: &[Command] = &[
     cmd!("view.library", "Component Library", "View", "Shift+F", Any, "book", a::focus_library),
     cmd!("view.palette", "Command Palette…", "View", "Ctrl+K", Any, "search", a::palette),
     cmd!("view.palette2", "Command Palette…", "", "Ctrl+Shift+P", Any, "search", a::palette),
+    cmd!("view.flip_board", "View from Bottom", "View", "Alt+F", Pcb, "flip", a::flip_view),
     cmd!("view.clear_highlight", "Clear Net Highlight", "View", "", Pcb, "eye", a::clear_highlight),
     // Place (schematic)
     cmd!("tool.select", "Select", "Place", "S", Canvas, "select", a::tool_select),

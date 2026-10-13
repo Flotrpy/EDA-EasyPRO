@@ -284,6 +284,8 @@ pub struct AppState {
     pub route_width: RwSignal<Option<i64>>,
     /// Recently placed device ids.
     pub recent_parts: RwSignal<Vec<String>>,
+    /// PCB seen from the bottom (mirrored view).
+    pub pcb_flipped: RwSignal<bool>,
     pub dark: Memo<bool>,
 }
 
@@ -344,6 +346,7 @@ impl AppState {
             place_mirror: RwSignal::new(false),
             route_width: RwSignal::new(None),
             recent_parts: RwSignal::new(storage::recent_parts()),
+            pcb_flipped: RwSignal::new(false),
             dark,
         }
     }

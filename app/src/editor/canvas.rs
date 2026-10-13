@@ -233,6 +233,7 @@ fn scene_key(app: &AppState) -> SceneKey {
 fn render(app: &AppState, k: &Kind, v: &mut View) {
     let (w, h) = v.renderer.resize(v.dpr);
     v.camera.size = (w, h);
+    v.camera.flip = matches!(k, Kind::Pcb { .. }) && app.pcb_flipped.get_untracked();
     let key = scene_key(app);
     if v.scene_key.as_ref() != Some(&key) {
         if let Some(b) = handler(k).build(app, k) {
@@ -482,6 +483,7 @@ pub fn Canvas2d(kind: Kind) -> impl IntoView {
             app.tool.track();
             app.place_rot.track();
             app.place_mirror.track();
+            app.pcb_flipped.track();
             app.show_left.track();
             app.show_right.track();
             app.show_bottom.track();

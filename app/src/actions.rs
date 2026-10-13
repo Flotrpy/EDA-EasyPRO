@@ -757,6 +757,22 @@ pub fn palette(app: &AppState) {
     app.palette.set(true);
 }
 
+/// Look at the board from below; the active layer follows.
+pub fn flip_view(app: &AppState) {
+    let flipped = !app.pcb_flipped.get_untracked();
+    app.pcb_flipped.set(flipped);
+    app.active_layer.set(if flipped {
+        Layer::BottomCopper
+    } else {
+        Layer::TopCopper
+    });
+    app.status.set(if flipped {
+        "Viewing from the bottom (mirrored)".into()
+    } else {
+        "Viewing from the top".into()
+    });
+}
+
 pub fn clear_highlight(app: &AppState) {
     app.highlight_net.set(None);
 }

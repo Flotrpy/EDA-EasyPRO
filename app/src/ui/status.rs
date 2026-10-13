@@ -28,6 +28,7 @@ pub fn StatusBar() -> impl IntoView {
             <span class="hover-info">{move || app.hover_info.get()}</span>
             <span class="spacer"></span>
             <span class="sel">{move || { let n = app.selection.with(|s| s.len()); if n > 0 { format!("{n} selected") } else { String::new() } }}</span>
+            {move || (app.pcb_flipped.get() && matches!(app.tab(), Tab::Pcb { .. })).then(|| view! { <span class="flipped">"Bottom view"</span> })}
             <span class="pos">{pos}</span>
             <button class="grid link" title="Click to change the grid" on:click=move |_| cycle_grid(&app)>{grid}</button>
             <button class="unit" title="Toggle units" on:click=move |_| crate::actions::toggle_units(&app)>{move || app.settings.with(|s| s.unit.label())}</button>
