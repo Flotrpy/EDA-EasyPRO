@@ -3,7 +3,9 @@
 use crate::actions;
 use crate::commands::{self, COMMANDS};
 use crate::icons::Icon;
-use crate::state::use_app;
+use crate::state::{use_app, Tab, ViewCmd};
+use easypro_core::geom::Point;
+use easypro_core::id::Id;
 use leptos::html;
 use leptos::prelude::*;
 
@@ -11,6 +13,8 @@ use leptos::prelude::*;
 enum Entry {
     Cmd(&'static str, &'static str, &'static str, String),
     Part(String, String, String),
+    /// Jump to a placed part: tab, object, position, label.
+    Goto(Tab, Id, Point, String),
 }
 
 /// Subsequence match score; lower is better, None when not matching.
@@ -59,6 +63,31 @@ pub fn Palette() -> impl IntoView {
                 })
             })
             .collect();
+        if !q.is_empty() {
+            let mut gotos = Vec::new();
+            app.project.with_untracked(|p| {
+                for b in &p.boards {
+                    for (si, c) in b.schematic.components() {
+                        if c.designator.to_lowercase().starts_with(&q) {
+                            let tab = Tab::Schematic {
+                                board: b.id,
+                                sheet: si,
+                            };
+                            let label =
+                                format!("Go to {} ({}) in schematic", c.designator, c.value);
+                            gotos.push(Entry::Goto(tab, c.id, c.pos, label));
+                        }
+                    }
+                    for c in &b.pcb.components {
+                        if c.designator.to_lowercase().starts_with(&q) {
+                            let label = format!("Go to {} in PCB", c.designator);
+                            gotos.push(Entry::Goto(Tab::Pcb { board: b.id }, c.id, c.pos, label));
+                        }
+                    }
+                }
+            });
+            out.extend(gotos.into_iter().take(10).map(|e| (5, e)));
+        }
         if q.len() >= 2 {
             for d in easypro_core::builtin::library()
                 .search(&q)
@@ -83,6 +112,11 @@ pub fn Palette() -> impl IntoView {
         match e {
             Entry::Cmd(id, ..) => commands::run(&app, id),
             Entry::Part(id, ..) => actions::place_device(&app, id),
+            Entry::Goto(tab, id, pos, _) => {
+                app.open(tab.clone());
+                app.selection.set(vec![*id]);
+                app.view_cmd.set(Some(ViewCmd::Show(*pos)));
+            }
         }
     };
     view! {
@@ -111,6 +145,10 @@ pub fn Palette() -> impl IntoView {
                         let (icon, label, hint) = match &e {
                             Entry::Cmd(_, l, ic, k) => (*ic, l.to_string(), k.clone()),
                             Entry::Part(_, name, fp) => ("chip", format!("Place {name}"), fp.trim_start_matches("fp:").to_string()),
+                            Entry::Goto(tab, _, _, label) => {
+                                let icon = if matches!(tab, Tab::Pcb { .. }) { "pcb" } else { "schematic" };
+                                (icon, label.clone(), String::new())
+                            }
                         };
                         view! {
                             <button class="palette-item" class:active=move || cursor.get() == i on:mouseenter=move |_| cursor.set(i) on:click=move |_| run(&e2)>
