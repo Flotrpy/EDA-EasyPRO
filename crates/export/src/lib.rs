@@ -6,3 +6,6 @@
 pub mod bom;
 pub mod drill;
 pub mod gerber;
+pub mod netlist;
+pub mod svg;
+pub mod zip;
