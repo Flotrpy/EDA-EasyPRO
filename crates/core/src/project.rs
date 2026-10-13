@@ -168,6 +168,27 @@ impl Project {
         id
     }
 
+    /// Remove a sheet; a board always keeps at least one.
+    pub fn remove_sheet(&mut self, board: Id, index: usize) -> bool {
+        match self.board_mut(board) {
+            Some(b) if b.schematic.sheets.len() > 1 && index < b.schematic.sheets.len() => {
+                b.schematic.sheets.remove(index);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Remove a board; a project always keeps at least one.
+    pub fn remove_board(&mut self, board: Id) -> bool {
+        if self.boards.len() <= 1 {
+            return false;
+        }
+        let n = self.boards.len();
+        self.boards.retain(|b| b.id != board);
+        n != self.boards.len()
+    }
+
     pub fn add_sheet(&mut self, board: Id) -> Option<Id> {
         let id = self.next_id();
         let b = self.board_mut(board)?;
@@ -227,6 +248,20 @@ mod tests {
         let mut q2 = q.clone();
         let id = q2.next_id();
         assert!(id > q.boards[0].pcb.max_id());
+    }
+
+    #[test]
+    fn last_sheet_and_board_are_kept() {
+        let mut p = Project::new("x");
+        let b = p.boards[0].id;
+        assert!(!p.remove_sheet(b, 0));
+        p.add_sheet(b);
+        assert!(p.remove_sheet(b, 0));
+        assert_eq!(p.boards[0].schematic.sheets.len(), 1);
+        assert!(!p.remove_board(b));
+        let b2 = p.add_board("B2");
+        assert!(p.remove_board(b));
+        assert_eq!(p.boards[0].id, b2);
     }
 
     #[test]
