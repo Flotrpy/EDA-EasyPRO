@@ -311,6 +311,10 @@ fn paste_offset(app: &AppState, offset: Option<Point>) {
                     new_ids = edit::sch_paste(s, &frag, d, &mut ids);
                 }
                 p.ids = ids;
+                // Pasted parts get the next free designators straight away.
+                if let Some(bd) = p.board_mut(b) {
+                    easypro_core::sync::annotate(bd, &lib, false);
+                }
             });
         }
         (Clip::Pcb(frag), Tab::Pcb { .. }) => {
