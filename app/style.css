@@ -204,6 +204,11 @@ kbd {
 .statusbar .pos { font-variant-numeric: tabular-nums; min-width: 190px; }
 .statusbar .unit { padding: 0 6px; height: 18px; font-size: 11px; }
 
+.splitter { flex: none; background: transparent; position: relative; z-index: 5; }
+.splitter.vertical { width: 5px; margin: 0 -2px; cursor: col-resize; }
+.splitter.horizontal { height: 5px; margin: -2px 0; cursor: row-resize; }
+.splitter:hover, .splitter.active { background: var(--accent); opacity: 0.6; }
+
 /* ---------------------------------------------------------- left */
 
 .left { display: flex; background: var(--panel); border-right: 1px solid var(--border); flex: none; min-width: 200px; }

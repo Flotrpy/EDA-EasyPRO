@@ -251,13 +251,13 @@ fn Shell() -> impl IntoView {
             <ui::topbar::TopBar />
             <ui::toolbar::Toolbar />
             <div class="main">
-                <Show when=move || app.show_left.get()><ui::left::LeftPanel /></Show>
+                <Show when=move || app.show_left.get()><ui::left::LeftPanel /><ui::splitter::Splitter edge=ui::splitter::Edge::Left /></Show>
                 <div class="center">
                     <ui::tabs::TabStrip />
                     <div class="doc"><editor::Workspace /></div>
-                    <Show when=move || app.show_bottom.get()><ui::bottom::BottomPanel /></Show>
+                    <Show when=move || app.show_bottom.get()><ui::splitter::Splitter edge=ui::splitter::Edge::Bottom /><ui::bottom::BottomPanel /></Show>
                 </div>
-                <Show when=move || app.show_right.get() && !matches!(app.tab(), Tab::Start)><ui::right::RightPanel /></Show>
+                <Show when=move || app.show_right.get() && !matches!(app.tab(), Tab::Start)><ui::splitter::Splitter edge=ui::splitter::Edge::Right /><ui::right::RightPanel /></Show>
             </div>
             <ui::status::StatusBar />
             <ui::context::ContextMenu />
