@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/export", "crates/render", "crates/view3d", "app"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Flotrpy/EDA-EasyPRO"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rstar = "0.12"
+earcutr = "0.4"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

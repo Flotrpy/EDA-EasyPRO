@@ -1,0 +1,10 @@
+[package]
+name = "easypro-export"
+description = "Fabrication outputs (Gerber, Excellon, BOM, pick-and-place, SVG, netlists) for EasyPRO"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+easypro-core = { path = "../core" }
+serde_json.workspace = true

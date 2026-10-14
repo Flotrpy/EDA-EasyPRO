@@ -1,0 +1,6 @@
+/target
+/dist
+/app/dist
+**/*.rs.bk
+.DS_Store
+node_modules/

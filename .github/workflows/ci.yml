@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  TRUNK_VERSION: v0.21.14
+
+jobs:
+  check:
+    name: Format, lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy (native crates)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Clippy (web app)
+        run: cargo clippy -p easypro-app --target wasm32-unknown-unknown -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+      - name: Fabrication package smoke test
+        run: |
+          cargo run -p easypro-export --example fab_package -- blinker-fab.zip jlcpcb 555
+          cargo run -p easypro-export --example fab_package -- regulator-fab.zip pcbway 3.3v
+      - name: Upload sample fabrication packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-fab-packages
+          path: |
+            blinker-fab.zip
+            regulator-fab.zip
+          retention-days: 14
+
+  build:
+    name: Build web app and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Trunk
+        run: |
+          curl -sSL "https://github.com/trunk-rs/trunk/releases/download/${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C /usr/local/bin
+          trunk --version
+      - name: Build
+        working-directory: app
+        run: trunk build --release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Browser smoke test
+        working-directory: tests/e2e
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+          node smoke.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: easypro-web
+          path: app/dist
